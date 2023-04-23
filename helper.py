@@ -8,6 +8,8 @@ helper.py: collection of helper functions for chapter projects
 """
 
 import numpy as np
+import model_coef as M
+from scipy.signal import cont2discrete
 
 ###
 # Returns rotation matrix based upon 3-2-1 Euler
@@ -128,3 +130,67 @@ def QuaternionToRotationMatrix(e_quaternion):
                       [2*(e1*e3 - e0*e2), 2*(e2*e3 + e0*e1), (1 - 2*e1**2 - 2*e2**2)]])
     
     return R_b_i
+
+
+
+## Discretizes the continuous time matrices A and B ##
+def write_discrete_SS():
+    n = M.A_lat[0].size
+    m = M.B_lat[0].size
+    C = np.zeros((1, n))
+    D = np.zeros((1, m))
+    
+    # lat
+    dsys = cont2discrete((M.A_lat, M.B_lat, C, D), M.Ts, method='bilinear')
+    Ad_lat, Bd_lat, *idc = dsys
+    
+    # lon
+    dsys = cont2discrete((M.A_lon, M.B_lon, C, D), M.Ts, method='bilinear')
+    Ad_lon, Bd_lon, *idc = dsys
+
+    file = open('model_coef_discrete.py', 'w')
+    file.write('import numpy as np\n')
+
+    file.write('Ad_lon = np.array([\n    [%f, %f, %f, %f, %f],\n    '
+               '[%f, %f, %f, %f, %f],\n    '
+               '[%f, %f, %f, %f, %f],\n    '
+               '[%f, %f, %f, %f, %f],\n    '
+               '[%f, %f, %f, %f, %f]])\n' %
+    (Ad_lon[0][0], Ad_lon[0][1], Ad_lon[0][2], Ad_lon[0][3], Ad_lon[0][4],
+     Ad_lon[1][0], Ad_lon[1][1], Ad_lon[1][2], Ad_lon[1][3], Ad_lon[1][4],
+     Ad_lon[2][0], Ad_lon[2][1], Ad_lon[2][2], Ad_lon[2][3], Ad_lon[2][4],
+     Ad_lon[3][0], Ad_lon[3][1], Ad_lon[3][2], Ad_lon[3][3], Ad_lon[3][4],
+     Ad_lon[4][0], Ad_lon[4][1], Ad_lon[4][2], Ad_lon[4][3], Ad_lon[4][4]))
+    file.write('Bd_lon = np.array([\n    [%f, %f],\n    '
+               '[%f, %f],\n    '
+               '[%f, %f],\n    '
+               '[%f, %f],\n    '
+               '[%f, %f]])\n' %
+    (Bd_lon[0][0], Bd_lon[0][1],
+     Bd_lon[1][0], Bd_lon[1][1],
+     Bd_lon[2][0], Bd_lon[2][1],
+     Bd_lon[3][0], Bd_lon[3][1],
+     Bd_lon[4][0], Bd_lon[4][1],))
+    file.write('Ad_lat = np.array([\n    [%f, %f, %f, %f, %f],\n    '
+               '[%f, %f, %f, %f, %f],\n    '
+               '[%f, %f, %f, %f, %f],\n    '
+               '[%f, %f, %f, %f, %f],\n    '
+               '[%f, %f, %f, %f, %f]])\n' %
+    (Ad_lat[0][0], Ad_lat[0][1], Ad_lat[0][2], Ad_lat[0][3], Ad_lat[0][4],
+     Ad_lat[1][0], Ad_lat[1][1], Ad_lat[1][2], Ad_lat[1][3], Ad_lat[1][4],
+     Ad_lat[2][0], Ad_lat[2][1], Ad_lat[2][2], Ad_lat[2][3], Ad_lat[2][4],
+     Ad_lat[3][0], Ad_lat[3][1], Ad_lat[3][2], Ad_lat[3][3], Ad_lat[3][4],
+     Ad_lat[4][0], Ad_lat[4][1], Ad_lat[4][2], Ad_lat[4][3], Ad_lat[4][4]))
+    file.write('Bd_lat = np.array([\n    [%f, %f],\n    '
+               '[%f, %f],\n    '
+               '[%f, %f],\n    '
+               '[%f, %f],\n    '
+               '[%f, %f]])\n' %
+    (Bd_lat[0][0], Bd_lat[0][1],
+     Bd_lat[1][0], Bd_lat[1][1],
+     Bd_lat[2][0], Bd_lat[2][1],
+     Bd_lat[3][0], Bd_lat[3][1],
+     Bd_lat[4][0], Bd_lat[4][1],))
+    file.close()
+
+    return
