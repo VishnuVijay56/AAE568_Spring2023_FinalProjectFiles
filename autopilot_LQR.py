@@ -11,8 +11,6 @@ from scipy.linalg import solve_continuous_are, solve_discrete_are
 import control_parameters as AP
 #from transfer_function import transferFunction
 from wrap import wrap
-from pi_control import PIControl
-from pd_control_with_rate import PDControlWithRate
 import model_coef as M
 from helper import QuaternionToEuler
 
@@ -119,7 +117,7 @@ class Autopilot:
                           [state.r],
                           [state.phi],
                           [err_chi],
-                          [self.int_course]])
+                          [self.int_course]], dtype=object)
 
         temp = -self.K_lat @ x_lat
         delta_a = self.saturate(temp.item(0) + self.trim_d_a, -np.radians(30), np.radians(30))
@@ -143,7 +141,7 @@ class Autopilot:
                           [state.theta], # theta
                           [err_down], # downward pos
                           [self.int_down], # integral of altitude
-                          [self.int_Va]]) # integral of airspeed
+                          [self.int_Va]], dtype=object) # integral of airspeed
 
         temp = -self.K_lon @ x_lon
         delta_e = self.saturate(temp.item(0) + self.trim_d_e, -np.radians(30), np.radians(30))

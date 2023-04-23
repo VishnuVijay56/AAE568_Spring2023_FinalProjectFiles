@@ -118,20 +118,6 @@ class MAV_State:
         # alt
         self.altitude = x_lon.item(4)
 
-
-    def add_noise(self):
-        self.Va += 0.1*np.random.randn(1)
-        self.altitude += 0.1*np.random.randn(1)
-
-        self.p += 0.1*np.random.randn(1)
-        self.q += 0.1*np.random.randn(1)
-        self.r += 0.1*np.random.randn(1)
-
-        self.phi += 0.1*np.random.randn(1)
-        self.theta += 0.1*np.random.randn(1)
-        self.psi += 0.1*np.random.randn(1)
-
-
     def print(self):
         print("MAV STATE:")
         print("\tNorth: {}; East: {}; Alt: {}".format(self.north, self.east, self.altitude))
