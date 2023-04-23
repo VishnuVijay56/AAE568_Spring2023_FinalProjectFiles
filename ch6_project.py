@@ -103,7 +103,7 @@ if (display_graphs):
 
 while (curr_time <= end_time) and (view_sim):
     step_start = time.time()
-    #print("\nTime: " + str(round(curr_time, 2)) + " ", end=" -> \n")
+    # print("\nTime: " + str(round(curr_time, 2)) + " ", end=" -> \n")
 
     # autopilot commands
     commands.airspeed_command = Va_command.square(curr_time)
@@ -111,7 +111,7 @@ while (curr_time <= end_time) and (view_sim):
     commands.altitude_command = altitude_command.square(curr_time)
     
     # autopilot
-    estimated_state = mav_dynamics.mav_state #this is the actual mav state
+    estimated_state = mav_dynamics.mav_state  # this is the actual mav state
     delta, commanded_state = autopilot.update(commands, estimated_state)
     
     # wind sim
