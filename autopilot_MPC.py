@@ -9,10 +9,8 @@ from casadi import *
 import do_mpc
 
 import control_parameters as AP
-#from transfer_function import transferFunction
 from wrap import wrap
 import model_coef as M
-from helper import QuaternionToEuler
 
 from mav_state import MAV_State
 from delta_state import Delta_State
@@ -37,9 +35,7 @@ class Autopilot:
         self.err_down_delay = 0
         self.err_Va_delay = 0
 
-        suppress_ipopt = {'ipopt.print_level': 0, 'ipopt.sb': 'yes', 'print_time': 0}
-
-        # Compute MPC gain
+        suppress_ipopt = {'ipopt.print_level': 0, 'ipopt.sb': 'yes', 'print_time': 0}  # Supress MPC output
         '''
         1. Lateral State Definition
         2. Gain Definition
@@ -48,11 +44,6 @@ class Autopilot:
         # Initialize Lateral State Space
         A_Alat = M.A_lat
         B_Blat = M.B_lat
-
-        # H_lat = np.array([[0, 0, 0, 0, 1.0]])
-        # A_Alat = np.concatenate((np.concatenate((M.A_lat, np.zeros((5,1))), axis=1),
-        #                          np.concatenate((H_lat, np.zeros((1,1))), axis=1)), axis=0)
-        # B_Blat = np.concatenate((M.B_lat, np.zeros((1,2))), axis=0)
 
         # Q Gains
         q_v = 1e-1
@@ -77,15 +68,15 @@ class Autopilot:
         lateral_model = do_mpc.model.Model(model_type)
 
         # Initialize States
-        _x_lat = lateral_model.set_variable(var_type='_x', var_name='x', shape=(np.shape(A_Alat)[0], 1))
-        _u_lat = lateral_model.set_variable(var_type='_u', var_name='u', shape=(np.shape(B_Blat)[1], 1))
+        _x_lat = lateral_model.set_variable(var_type='_x', var_name='x_lat', shape=(np.shape(A_Alat)[0], 1))
+        _u_lat = lateral_model.set_variable(var_type='_u', var_name='u_lat', shape=(np.shape(B_Blat)[1], 1))
 
         # Define state update in MPC Toolbox
         x_next_lat = A_Alat@_x_lat + B_Blat@_u_lat
-        lateral_model.set_rhs('x', x_next_lat)
+        lateral_model.set_rhs('x_lat', x_next_lat)
 
         # Define cost function
-        expression_lat = _x_lat.T@Q_lat@_x_lat  #  + _u_lat.T@R_lat@ _u_lat
+        expression_lat = _x_lat.T@Q_lat@_x_lat
         lateral_model.set_expression(expr_name='cost', expr=expression_lat)
 
         # Build the model
@@ -101,8 +92,6 @@ class Autopilot:
             't_step': ts_control,
             'state_discretization': 'discrete',
             'store_full_solution':True,
-            # Use MA27 linear solver in ipopt for faster calculations:
-            #'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
         }
 
         self.mpc_lat.set_param(**setup_lateral_mpc, nlpsol_opts=suppress_ipopt)
@@ -113,18 +102,18 @@ class Autopilot:
         self.mpc_lat.set_objective(mterm=mterm_lat, lterm=lterm_lat) # stage cost
 
         # This line is used in the toolbox
-        self.mpc_lat.set_rterm(u=R_lat)  # input penalty
+        self.mpc_lat.set_rterm(u_lat=R_lat)  # input penalty
 
         # Constraints
         max_u_lat = np.array([[np.radians(30)], [np.radians(30)]])
         min_u_lat = -np.array([[np.radians(30)], [np.radians(30)]])
 
-        self.mpc_lat.bounds['upper', '_u', 'u'] = max_u_lat
-        self.mpc_lat.bounds['lower', '_u', 'u'] = min_u_lat
+        self.mpc_lat.bounds['upper', '_u', 'u_lat'] = max_u_lat
+        self.mpc_lat.bounds['lower', '_u', 'u_lat'] = min_u_lat
 
         # Scaling
         scaling_array_lat = np.array([1/28, 1, 1, 1, 1])
-        self.mpc_lat.scaling['_x', 'x'] = scaling_array_lat
+        self.mpc_lat.scaling['_x', 'x_lat'] = scaling_array_lat
 
         # Setup the mpc
         self.mpc_lat.setup()
@@ -141,13 +130,6 @@ class Autopilot:
         # Longitudinal State Linearization
         A_Alon = M.A_lon
         B_Blon = M.B_lon
-
-        # u_star = M.x_trim.item(3)
-        # w_star = M.x_trim.item(5)
-        # H_lon = np.array([[0., 0., 0., 0., 1.], [u_star / AP.Va0, w_star / AP.Va0, 0., 0., 0.]])
-        # A_Alon = np.concatenate((np.concatenate((M.A_lon, np.zeros((5,2))), axis=1),
-        #                          np.concatenate((H_lon, np.zeros((2,2))), axis=1)), axis=0)
-        # B_Blon = np.concatenate((M.B_lon, np.zeros((2,2))), axis=0)
 
         # Longitudinal Q gains
         q_u = 1e1
@@ -171,12 +153,12 @@ class Autopilot:
         longitudinal_model = do_mpc.model.Model(model_type)
 
         # Initialize States
-        _x_lon = longitudinal_model.set_variable(var_type='_x', var_name='x', shape=(np.shape(A_Alon)[0], 1))
-        _u_lon = longitudinal_model.set_variable(var_type='_u', var_name='u', shape=(np.shape(B_Blon)[1], 1))
+        _x_lon = longitudinal_model.set_variable(var_type='_x', var_name='x_lon', shape=(np.shape(A_Alon)[0], 1))
+        _u_lon = longitudinal_model.set_variable(var_type='_u', var_name='u_lon', shape=(np.shape(B_Blon)[1], 1))
 
         # Define state update in MPC Toolbox
         x_next_lon = A_Alon @ _x_lon + B_Blon @ _u_lon
-        longitudinal_model.set_rhs('x', x_next_lon)
+        longitudinal_model.set_rhs('x_lon', x_next_lon)
 
         # Define cost function
         expression_lon = _x_lon.T @ Q_lon @ _x_lon  # + _u_lon.T @ R_lon @ _u_lon
@@ -195,8 +177,6 @@ class Autopilot:
             't_step': ts_control,
             'state_discretization': 'discrete',
             'store_full_solution': True,
-            # Use MA27 linear solver in ipopt for faster calculations:
-            # 'nlpsol_opts': {'ipopt.linear_solver': 'MA27'}
         }
 
         self.mpc_lon.set_param(**setup_longitudinal_mpc, nlpsol_opts=suppress_ipopt)
@@ -207,18 +187,18 @@ class Autopilot:
         self.mpc_lon.set_objective(mterm=mterm_lon, lterm=lterm_lon)  # stage cost
 
         # This line is used in the toolbox
-        self.mpc_lon.set_rterm(u=R_lon)  # input penalty
+        self.mpc_lon.set_rterm(u_lon=R_lon)  # input penalty
 
         # Constraints
         max_u_lon = np.array([[np.radians(30)], [1.]])
         min_u_lon = np.array([[-np.radians(30)], [0.]])
 
-        self.mpc_lon.bounds['upper', '_u', 'u'] = max_u_lon
-        self.mpc_lon.bounds['lower', '_u', 'u'] = min_u_lon
+        self.mpc_lon.bounds['upper', '_u', 'u_lon'] = max_u_lon
+        self.mpc_lon.bounds['lower', '_u', 'u_lon'] = min_u_lon
 
         # Scaling
         scaling_array_lon = np.array([1, 1, 1, 1, 1/15])
-        self.mpc_lon.scaling['_x', 'x'] = scaling_array_lon
+        self.mpc_lon.scaling['_x', 'x_lon'] = scaling_array_lon
 
         # Setup the mpc
         self.mpc_lon.setup()
@@ -226,8 +206,6 @@ class Autopilot:
         # Initialize initial conditions
         self.mpc_lon.x0 = state.get_lon_state()
         self.mpc_lon.set_initial_guess()
-        # self.mpc_lon.supress_ipopt_output(self)
-        # self.mpc_lat.supress_ipopt_output(self)
 
         '''State Definition'''
         self.commanded_state = MAV_State()
@@ -251,15 +229,14 @@ class Autopilot:
                           [state.r],
                           [state.phi],
                           [err_chi]], dtype=object)
+
         lat_control = self.mpc_lat.make_step(x_lat)
         delta_a = lat_control[0, 0]
         delta_r = lat_control[1, 0]
 
-        # delta_a = self.saturate(control.item(0) + self.trim_d_a, -np.radians(30), np.radians(30))
-        # delta_r = self.saturate(control.item(1) + self.trim_d_r, -np.radians(30), np.radians(30))
-
-
-        # Longitudinal Autopilot
+        '''
+        Longitudinal MPC
+        '''
         alt_c = self.saturate(cmd.altitude_command, state.altitude - 0.2*AP.altitude_zone, state.altitude + 0.2*AP.altitude_zone)
         err_alt = state.altitude - alt_c
         err_down = -err_alt
@@ -276,12 +253,9 @@ class Autopilot:
                           [state.theta], # theta
                           [err_down]], dtype=object)  # downward position
 
-        lon_control = self.mpc_lat.make_step(x_lat)
+        lon_control = self.mpc_lon.make_step(x_lon)
         delta_e = lon_control[0, 0]
-        delta_t = lat_control[1, 0]
-
-        # delta_e = self.saturate(control.item(0) + self.trim_d_e, -np.radians(30), np.radians(30))
-        # delta_t = self.saturate((control.item(1) + self.trim_d_t), 0., 1.)
+        delta_t = lon_control[1, 0]
 
         # construct output and commanded states
         delta = Delta_State(d_e = delta_e,
