@@ -33,15 +33,15 @@ wind_sim = WindSimulation(Ts)
 # Autopilot message
 commands = AutopilotCmds()
 Va_command = Signals(dc_offset=25.0,
-                     amplitude=3.0,
+                     amplitude=0.0,#3.0,
                      start_time=2.0,
                      frequency=0.01)
 altitude_command = Signals(dc_offset=0.0,
-                           amplitude=15.0,
+                           amplitude=0.0,#15.0,
                            start_time=0.0,
                            frequency=0.02)
 course_command = Signals(dc_offset=np.radians(0),
-                         amplitude=np.radians(45),
+                         amplitude=np.radians(0),# 45),
                          start_time=5.0,
                          frequency=0.015)
 

@@ -6,6 +6,8 @@ import numpy as np
 
 from scipy.linalg import solve_continuous_are, solve_discrete_are
 from casadi import *
+rel_do_mpc_path = os.path.join('..','..')
+sys.path.append(rel_do_mpc_path)
 import do_mpc
 
 import control_parameters as AP
@@ -35,7 +37,9 @@ class Autopilot:
         self.err_down_delay = 0
         self.err_Va_delay = 0
 
-        suppress_ipopt = {'ipopt.print_level': 0, 'ipopt.sb': 'yes', 'print_time': 0}  # Supress MPC output
+        # Supress ipopt Output (used in General Settings)
+        suppress_ipopt = {'ipopt.print_level': 0, 'ipopt.sb': 'yes', 'print_time': 0}
+
         '''
         1. Lateral State Definition
         2. Gain Definition
@@ -99,9 +103,9 @@ class Autopilot:
         # Setting up terminal cost I think?
         mterm_lat = lateral_model.aux['cost']  # terminal cost
         lterm_lat = lateral_model.aux['cost']  # terminal cost
-        self.mpc_lat.set_objective(mterm=mterm_lat, lterm=lterm_lat) # stage cost
+        self.mpc_lat.set_objective(mterm=mterm_lat, lterm=lterm_lat)  # stage cost
 
-        # This line is used in the toolbox
+        # Set Control Cost
         self.mpc_lat.set_rterm(u_lat=R_lat)  # input penalty
 
         # Constraints
@@ -112,7 +116,7 @@ class Autopilot:
         self.mpc_lat.bounds['lower', '_u', 'u_lat'] = min_u_lat
 
         # Scaling
-        scaling_array_lat = np.array([1/28, 1, 1, 1, 1])
+        scaling_array_lat = np.array([1, 1, 1, 1, 1])
         self.mpc_lat.scaling['_x', 'x_lat'] = scaling_array_lat
 
         # Setup the mpc
@@ -161,7 +165,7 @@ class Autopilot:
         longitudinal_model.set_rhs('x_lon', x_next_lon)
 
         # Define cost function
-        expression_lon = _x_lon.T @ Q_lon @ _x_lon  # + _u_lon.T @ R_lon @ _u_lon
+        expression_lon = _x_lon.T @ Q_lon @ _x_lon
         longitudinal_model.set_expression(expr_name='cost', expr=expression_lon)
         # NOTS: Toolbox defines R differently
 
@@ -197,7 +201,7 @@ class Autopilot:
         self.mpc_lon.bounds['lower', '_u', 'u_lon'] = min_u_lon
 
         # Scaling
-        scaling_array_lon = np.array([1, 1, 1, 1, 1/15])
+        scaling_array_lon = np.array([1, 1, 1, 1, 1])
         self.mpc_lon.scaling['_x', 'x_lon'] = scaling_array_lon
 
         # Setup the mpc
