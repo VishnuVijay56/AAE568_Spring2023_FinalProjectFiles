@@ -12,9 +12,9 @@ from transfer_function import transferFunction
 import numpy as np
 
 class WindSimulation:
-    def __init__(self, Ts):
+    def __init__(self, Ts, ss_wind, gust_flag = False):
         # steady state wind defined in the inertial frame
-        self._steady_state = np.array([[0., 0., 0.]]).T
+        self._steady_state = ss_wind
         
 
         #   Dryden gust model parameters (section 4.4 UAV book)
@@ -22,7 +22,7 @@ class WindSimulation:
         Lu = 200
         Lv = Lu
         Lw = 50
-        gust_flag = False
+        
         if gust_flag==False:
             sigma_u = 1.06
             sigma_v = sigma_u
