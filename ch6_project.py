@@ -22,28 +22,48 @@ from autopilot_cmds import AutopilotCmds
 
 # Create instance of MAV_Dynamics
 Ts = 0.01
-mav_dynamics = MAV_Dynamics(time_step=Ts) # time step in seconds
-mav_state = mav_dynamics.mav_state
+chaser_dynamics = MAV_Dynamics(time_step=Ts) # time step in seconds
+leader_dynamics = MAV_Dynamics(time_step=Ts) # time step in seconds
+chaser_state = chaser_dynamics.mav_state
+leader_state = leader_dynamics.mav_state
+
 # Create instance of MAV object using MAV_State object
 fullscreen = False
-this_mav = MAV(mav_state, fullscreen)
+this_mav = MAV(chaser_state, leader_state, fullscreen)
+this_mav.leader_state.altitude += 10
+
 # Create instance of wind simulation
 wind_sim = WindSimulation(Ts)
-# Autopilot message
-commands = AutopilotCmds()
-Va_command = Signals(dc_offset=25.0,
-                     amplitude=3.0,
-                     start_time=2.0,
-                     frequency=0.01)
-altitude_command = Signals(dc_offset=0.0,
-                           amplitude=15.0,
-                           start_time=0.0,
-                           frequency=0.02)
-course_command = Signals(dc_offset=np.radians(0),
-                         amplitude=np.radians(45),
-                         start_time=5.0,
-                         frequency=0.015)
 
+# Chaser Autopilot message
+chaser_commands = AutopilotCmds()
+Va_command_chaser = Signals(dc_offset=25.0,
+                            amplitude=3.0,
+                            start_time=2.0,
+                            frequency=0.01)
+altitude_command_chaser = Signals(dc_offset=0.0,
+                                  amplitude=15.0,
+                                  start_time=0.0,
+                                  frequency=0.02)
+course_command_chaser = Signals(dc_offset=np.radians(0),
+                                amplitude=np.radians(45),
+                                start_time=5.0,
+                                frequency=0.015)
+
+# Leader Autopilot message
+leader_commands = AutopilotCmds()
+Va_command_leader = Signals(dc_offset=25.0,
+                            amplitude=3.0,
+                            start_time=2.0,
+                            frequency=0.01)
+altitude_command_leader = Signals(dc_offset=0.0,
+                                  amplitude=10.0,
+                                  start_time=0.0,
+                                  frequency=0.02)
+course_command_leader = Signals(dc_offset=np.radians(0),
+                                amplitude=np.radians(-45),
+                                start_time=5.0,
+                                frequency=0.015)
 
 # # Find trim state
 # Va = 25
@@ -59,7 +79,8 @@ course_command = Signals(dc_offset=np.radians(0),
 
 # Create instance of autopilot
 from autopilot_LQR import Autopilot
-autopilot = Autopilot(Ts)
+chaser_autopilot = Autopilot(Ts)
+leader_autopilot = Autopilot(Ts)
 
 # Run Simulation
 curr_time = 0
@@ -106,49 +127,59 @@ while (curr_time <= end_time) and (view_sim):
     #print("\nTime: " + str(round(curr_time, 2)) + " ", end=" -> \n")
 
     # autopilot commands
-    commands.airspeed_command = Va_command.square(curr_time)
-    commands.course_command = course_command.square(curr_time)
-    commands.altitude_command = altitude_command.square(curr_time)
-    
+    chaser_commands.airspeed_command = Va_command_chaser.square(curr_time)
+    chaser_commands.course_command = course_command_chaser.square(curr_time)
+    chaser_commands.altitude_command = altitude_command_chaser.square(curr_time)
     # autopilot
-    estimated_state = mav_dynamics.mav_state #this is the actual mav state
-    delta, commanded_state = autopilot.update(commands, estimated_state)
+    estimated_chaser = chaser_dynamics.mav_state #this is the actual mav state
+    chaser_delta, commanded_state = chaser_autopilot.update(chaser_commands, estimated_chaser)
+
+    # autopilot commands
+    leader_commands.airspeed_command = Va_command_leader.square(curr_time)
+    leader_commands.course_command = course_command_leader.square(curr_time)
+    leader_commands.altitude_command = altitude_command_leader.square(curr_time)
+    # autopilot
+    estimated_leader = leader_dynamics.mav_state #this is the actual mav state
+    leader_delta, commanded_state = leader_autopilot.update(leader_commands, estimated_leader)
     
     # wind sim
     wind_steady_gust = wind_sim.update() # np.zeros((6,1)) #
 
     # Update MAV dynamic state
-    mav_dynamics.iterate(delta, wind_steady_gust)
+    chaser_dynamics.iterate(chaser_delta, wind_steady_gust)
+    leader_dynamics.iterate(leader_delta, wind_steady_gust)
 
     # Update MAV mesh for viewing
-    this_mav.set_mav_state(mav_dynamics.mav_state)
-    this_mav.update_mav_state()
+    this_mav.set_chaser_state(chaser_dynamics.mav_state)
+    this_mav.set_leader_state(leader_dynamics.mav_state)
+    this_mav.update_chaser_state()
+    this_mav.update_leader_state()
     this_mav.update_render()
     
     # DEBUGGING - Print Vehicle's state
     if (display_graphs):
         time_arr[ind] = curr_time
         
-        north_history[ind] = estimated_state.north
-        east_history[ind] = estimated_state.east
+        north_history[ind] = estimated_chaser.north
+        east_history[ind] = estimated_chaser.east
 
-        alt_history[ind] = estimated_state.altitude
-        alt_cmd_history[ind] = commands.altitude_command
+        alt_history[ind] = estimated_chaser.altitude
+        alt_cmd_history[ind] = chaser_commands.altitude_command
 
-        airspeed_history[ind] = estimated_state.Va
-        airspeed_cmd_history[ind] = commands.airspeed_command
+        airspeed_history[ind] = estimated_chaser.Va
+        airspeed_cmd_history[ind] = chaser_commands.airspeed_command
 
-        chi_history[ind] = estimated_state.chi * 180 / np.pi
-        chi_cmd_history[ind] = commands.course_command * 180 / np.pi
+        chi_history[ind] = estimated_chaser.chi * 180 / np.pi
+        chi_cmd_history[ind] = chaser_commands.course_command * 180 / np.pi
         
-        phi_history[ind] = estimated_state.phi * 180 / np.pi
-        theta_history[ind] = estimated_state.theta * 180 / np.pi
-        psi_history[ind] = estimated_state.psi * 180 / np.pi
+        phi_history[ind] = estimated_chaser.phi * 180 / np.pi
+        theta_history[ind] = estimated_chaser.theta * 180 / np.pi
+        psi_history[ind] = estimated_chaser.psi * 180 / np.pi
 
-        d_e_history[ind] = delta.elevator_deflection * 180 / np.pi
-        d_a_history[ind] = delta.aileron_deflection * 180 / np.pi
-        d_r_history[ind] = delta.rudder_deflection * 180 / np.pi
-        d_t_history[ind] = delta.throttle_level
+        d_e_history[ind] = chaser_delta.elevator_deflection * 180 / np.pi
+        d_a_history[ind] = chaser_delta.aileron_deflection * 180 / np.pi
+        d_r_history[ind] = chaser_delta.rudder_deflection * 180 / np.pi
+        d_t_history[ind] = chaser_delta.throttle_level
 
 
     #mav_dynamics.mav_state.print()
@@ -164,7 +195,7 @@ while (curr_time <= end_time) and (view_sim):
 
     # Update time
     step_end = time.time()
-    if ((sim_real_time) and ((step_end - step_start) < mav_dynamics.time_step)):
+    if ((sim_real_time) and ((step_end - step_start) < chaser_dynamics.time_step)):
         time.sleep(step_end - step_start)
     curr_time += Ts
     ind += 1
