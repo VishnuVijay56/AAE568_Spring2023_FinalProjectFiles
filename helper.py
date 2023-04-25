@@ -8,6 +8,8 @@ helper.py: collection of helper functions for chapter projects
 """
 
 import numpy as np
+import model_coef as M
+from scipy.signal import cont2discrete
 
 ###
 # Returns rotation matrix based upon 3-2-1 Euler
@@ -128,6 +130,7 @@ def QuaternionToRotationMatrix(e_quaternion):
                       [2*(e1*e3 - e0*e2), 2*(e2*e3 + e0*e1), (1 - 2*e1**2 - 2*e2**2)]])
     
     return R_b_i
+
 
 
 ## Discretizes the continuous time matrices A and B ##

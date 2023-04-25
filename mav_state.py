@@ -77,7 +77,7 @@ class MAV_State:
         #chi_c = wrap(cmd.course_command, self.chi)
         #err_chi = self.saturate(self.chi - chi_c, -np.radians(15), np.radians(15))
 
-        x_lat = np.array([[float(self.Va * np.sin(self.beta))],
+        x_lat = np.array([[float(self.Va * np.sin(self.beta))], 
                           [float(self.p)],
                           [float(self.r)],
                           [float(self.phi)],
