@@ -116,7 +116,7 @@ while (curr_time <= end_time) and (view_sim):
     delta, commanded_state = autopilot.update(commands, estimated_state)
     
     # wind sim
-    wind_steady_gust = wind_sim.update() # np.zeros((6,1)) #
+    wind_steady_gust = np.zeros((6,1)) #
 
     # Update MAV dynamic state
     mav_dynamics.iterate(delta, wind_steady_gust)
