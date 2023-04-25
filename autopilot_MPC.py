@@ -40,14 +40,39 @@ class Autopilot:
         # Supress ipopt Output (used in General Settings)
         suppress_ipopt = {'ipopt.print_level': 0, 'ipopt.sb': 'yes', 'print_time': 0}
 
+        # Matrix definition
+        A_Alon = np.array([
+            [0.997908, 0.005126, -0.011762, -0.097877, 0.000000],
+            [-0.005237, 0.951797, 0.231706, -0.005495, 0.000000],
+            [0.002051, -0.037957, 0.943900, 0.000011, 0.000000],
+            [0.000010, -0.000190, 0.009717, 1.000000, 0.000000],
+            [-0.000528, 0.009769, -0.000055, -0.250096, 1.000000]])
+        B_Blon = np.array([
+            [0.000677, 0.081990],
+            [-0.067072, -0.000215],
+            [-0.350505, 0.000084],
+            [-0.001752, 0.000000],
+            [-0.000116, -0.000022]])
+        A_Alat = np.array([
+            [0.991075, 0.011764, -0.246394, 0.097539, 0.000000],
+            [-0.034201, 0.796460, 0.101598, -0.001675, 0.000000],
+            [0.007768, -0.000982, 0.986781, 0.000381, 0.000000],
+            [-0.000169, 0.008982, 0.001006, 0.999992, 0.000000],
+            [0.000039, -0.000005, 0.009946, 0.000002, 1.000000]])
+        B_Blat = np.array([
+            [0.016320, 0.068029],
+            [1.177928, -0.029419],
+            [0.049201, -0.247014],
+            [0.005902, -0.000209],
+            [0.000246, -0.001237]])
         '''
         1. Lateral State Definition
         2. Gain Definition
         3. MPC for lateral state definition
         '''
         # Initialize Lateral State Space
-        A_Alat = M.A_lat
-        B_Blat = M.B_lat
+        # A_Alat = M.A_lat
+        # B_Blat = M.B_lat
 
         # Q Gains
         q_v = 1e-1
@@ -61,7 +86,7 @@ class Autopilot:
         r_a = 1e1
         r_r = 1e0
         R_lat = np.array([[r_a], [r_r]])  # Do-MPC does not like R as a matrix. Instead, it wants one "input penalty"
-        # for each input
+        # for each input, so for this case it is a column vector
 
         ###
         # Start Defining Lateral MPC
@@ -101,7 +126,8 @@ class Autopilot:
         self.mpc_lat.set_param(**setup_lateral_mpc, nlpsol_opts=suppress_ipopt)
 
         # Setting up terminal cost I think?
-        mterm_lat = lateral_model.aux['cost']  # terminal cost
+        # mterm_lat = lateral_model.aux['cost']  # terminal cost
+        mterm_lat = DM(1, 1)
         lterm_lat = lateral_model.aux['cost']  # terminal cost
         self.mpc_lat.set_objective(mterm=mterm_lat, lterm=lterm_lat)  # stage cost
 
@@ -132,8 +158,8 @@ class Autopilot:
         3. MPC Setup
         '''
         # Longitudinal State Linearization
-        A_Alon = M.A_lon
-        B_Blon = M.B_lon
+        # A_Alon = M.A_lon
+        # B_Blon = M.B_lon
 
         # Longitudinal Q gains
         q_u = 1e1
@@ -186,7 +212,8 @@ class Autopilot:
         self.mpc_lon.set_param(**setup_longitudinal_mpc, nlpsol_opts=suppress_ipopt)
 
         # Setting up terminal cost I think?
-        mterm_lon = longitudinal_model.aux['cost']  # terminal cost
+        # mterm_lon = longitudinal_model.aux['cost']  # terminal cost
+        mterm_lon = DM(1, 1)
         lterm_lon = longitudinal_model.aux['cost']  # terminal cost
         self.mpc_lon.set_objective(mterm=mterm_lon, lterm=lterm_lon)  # stage cost
 
