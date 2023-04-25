@@ -3,8 +3,10 @@ delta_state.py: class file for state of MAV deltas (aileron, rudder, elevator, t
     - Author: Vishnu Vijay
     - Created: 6/18/22
     - History:
-        - 
+        - 4/23/23: Add get_ulon() and get_ulat()
 """
+
+import numpy as np
 
 class Delta_State:
     def __init__(self, d_e = 0., d_a = 0., d_r = 0., d_t = 0.5):
@@ -28,6 +30,16 @@ class Delta_State:
             d_t = d_t.item(0)
         self.throttle_level = d_t
 
+    def get_ulon(self):
+        u_lon = np.array([[self.elevator_deflection], 
+                          [self.throttle_level]])
+        return u_lon
+
+    
+    def get_ulat(self):
+        u_lat = np.array([[self.aileron_deflection],
+                          [self.rudder_deflection]])
+        return u_lat
     
     def print(self):
         rounding_digits = 4

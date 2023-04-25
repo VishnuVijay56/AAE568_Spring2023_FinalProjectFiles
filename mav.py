@@ -20,23 +20,30 @@ class MAV:
     # Inputs:
     #   - state: initial state of the MAV
     ###
-    def __init__(self, state, fullscreen):
-        self.mav_state = state
+    def __init__(self, chaser_state, leader_state, fullscreen, view_sim):
+        self.chaser_state = chaser_state
+        self.leader_state = leader_state
+        self.view_sim = view_sim
+
         # Points that define original orientation and position of the MAV
-        self.mav_body = self.get_points().T
+        self.chaser_body = self.get_chaser_points().T
+        self.leader_body = self.get_leader_points().T
 
         # Points that define the most recent orientation and position of the MAV
-        self.mav_points = self.mav_body
-        self.mav_points_rendering = self.mav_body
+        self.chaser_points = self.chaser_body
+        self.leader_points = self.leader_body
 
         # Mesh body of MAV
-        self.mav_mesh = self.get_mesh()
+        self.chaser_mesh = self.get_mesh()
+        self.leader_mesh = self.get_mesh()
 
         # Updates points based on position and orientation of MAV
-        self.update_mav_state()
+        self.update_chaser_state()
+        self.update_leader_state()
 
         # Visualizer setup
-        self.start_visualizer(fullscreen)
+        if(self.view_sim):
+            self.start_visualizer(fullscreen)
 
 
     ###
@@ -74,8 +81,19 @@ class MAV:
     # Outputs:
     #   - N/A
     ###
-    def set_mav_state(self, new_state):
-        self.mav_state = new_state
+    def set_chaser_state(self, new_state):
+        self.chaser_state = new_state
+
+
+    ###
+    # Sets the global mav_state variable equal to the new state passed to function
+    # Inputs:
+    #   - new_state: new state to overwrite old state
+    # Outputs:
+    #   - N/A
+    ###
+    def set_leader_state(self, new_state):
+        self.leader_state = new_state
 
 
     ###
@@ -86,12 +104,28 @@ class MAV:
     # Outputs:
     #   - N/A
     ###
-    def update_mav_state(self):
+    def update_chaser_state(self):
         # Update points for rendering MAV
-        rot_mat2 = EulerRotationMatrix(-self.mav_state.phi, -self.mav_state.theta, -self.mav_state.psi)
-        rot_points2 = self.rotate_mav(self.mav_body, rot_mat2)
-        mav_pos2 = [self.mav_state.north, self.mav_state.east, -self.mav_state.altitude]
-        self.mav_points_rendering = self.translate_mav(rot_points2, mav_pos2)
+        rot_mat2 = EulerRotationMatrix(-self.chaser_state.phi, -self.chaser_state.theta, -self.chaser_state.psi)
+        rot_points2 = self.rotate_mav(self.chaser_body, rot_mat2)
+        mav_pos2 = [self.chaser_state.north, self.chaser_state.east, -self.chaser_state.altitude]
+        self.chaser_points = self.translate_mav(rot_points2, mav_pos2)
+
+
+    ###
+    # Updates the MAV's vertices according to the values stored in the MAV global state variable
+    # Calls rotate_mav() and translate_mav()
+    # Inputs:
+    #   - N/A
+    # Outputs:
+    #   - N/A
+    ###
+    def update_leader_state(self):
+        # Update points for rendering MAV
+        rot_mat2 = EulerRotationMatrix(-self.leader_state.phi, -self.leader_state.theta, -self.leader_state.psi)
+        rot_points2 = self.rotate_mav(self.leader_body, rot_mat2)
+        mav_pos2 = [self.leader_state.north, self.leader_state.east, -self.leader_state.altitude]
+        self.leader_points = self.translate_mav(rot_points2, mav_pos2)
 
 
     ###
@@ -102,7 +136,57 @@ class MAV:
     # Outputs:
     #   - original set of points that describe the MAV's vertices relative to a body fixed reference frame
     ###
-    def get_points(self):
+    def get_chaser_points(self):
+        # MAV Body Parameters
+        fuse_h = 1
+        fuse_w = 1
+        fuse_l1 = 2
+        fuse_l2 = 1
+        fuse_l3 = 4
+        wing_l = 1
+        wing_w = 6
+        tail_h = 1
+        tail_l = 1
+        tail_w = 2
+
+        # Generate Points
+        points = np.array([[fuse_l1, 0, 0], #1
+                           [fuse_l2, fuse_w/2, -fuse_h/2], #2
+                           [fuse_l2, -fuse_w/2, -fuse_h/2], #3
+                           [fuse_l2, -fuse_w/2, fuse_h/2], #4
+                           [fuse_l2, fuse_w/2, fuse_h/2], #5
+                           [-fuse_l3, 0, 0], #6
+                           [0, wing_w/2, 0], #7
+                           [-wing_l, wing_w/2, 0], #8
+                           [-wing_l, -wing_w/2, 0], #9
+                           [0, -wing_w/2, 0], #10
+                           [-fuse_l3+tail_l, tail_w/2, 0], #11
+                           [-fuse_l3, tail_w/2, 0], #12
+                           [-fuse_l3, -tail_w/2, 0], #13
+                           [-fuse_l3+tail_l, -tail_w/2, 0], #14
+                           [-fuse_l3+tail_l, 0, 0], #15
+                           [-fuse_l3, 0, -tail_h] #16
+                           ])
+        
+        self.num_points = 16
+        self.num_tri_faces = 13
+        
+        self.max_pos = 100
+        scale = self.max_pos / 40
+        points = scale * points
+
+        return points
+    
+
+    ###
+    # Used for initial setup of the MAV vertices according to hard-coded body parameters
+    # Only called in class constructor
+    # Inputs:
+    #   - N/A
+    # Outputs:
+    #   - original set of points that describe the MAV's vertices relative to a body fixed reference frame
+    ###
+    def get_leader_points(self):
         # MAV Body Parameters
         fuse_h = 1
         fuse_w = 1
@@ -189,20 +273,28 @@ class MAV:
         # Sets up reference frame mesh for rendering
         self.frame = o3d.geometry.TriangleMesh.create_coordinate_frame(self.max_pos / 10)
 
-        # Create mesh for MAV
+        # Create mesh for chaser
         self.rendering_R = EulerRotationMatrix(np.pi, 0, np.pi / 2) # NED -> ENU coordinates
-        vertices = o3d.utility.Vector3dVector(self.rotate_mav(self.mav_points_rendering.T, self.rendering_R).T)
-        self.triangles = o3d.utility.Vector3iVector(self.mav_mesh)
-        self.o3d_mesh = o3d.geometry.TriangleMesh(vertices, self.triangles)
-        self.o3d_mesh.compute_vertex_normals()
-        self.o3d_mesh.compute_triangle_normals()
+        chaser_vertices = o3d.utility.Vector3dVector(self.rotate_mav(self.chaser_points.T, self.rendering_R).T)
+        self.chaser_triangles = o3d.utility.Vector3iVector(self.chaser_mesh)
+        self.chaser_o3d_mesh = o3d.geometry.TriangleMesh(chaser_vertices, self.chaser_triangles)
+        self.chaser_o3d_mesh.compute_vertex_normals()
+        self.chaser_o3d_mesh.compute_triangle_normals()
+
+        # Create mesh for chaser
+        leader_vertices = o3d.utility.Vector3dVector(self.rotate_mav(self.chaser_points.T, self.rendering_R).T)
+        self.leader_triangles = o3d.utility.Vector3iVector(self.chaser_mesh)
+        self.leader_o3d_mesh = o3d.geometry.TriangleMesh(leader_vertices, self.leader_triangles)
+        self.leader_o3d_mesh.compute_vertex_normals()
+        self.leader_o3d_mesh.compute_triangle_normals()
 
         # Setup Visualizer (window)
         self.vis = o3d.visualization.Visualizer()
         self.vis.create_window(width = 2560, height = 1440)
         self.vis.set_full_screen(fullscreen)
         self.vis.add_geometry(self.frame)
-        self.vis.add_geometry(self.o3d_mesh)
+        self.vis.add_geometry(self.chaser_o3d_mesh)
+        self.vis.add_geometry(self.leader_o3d_mesh)
 
         # Setup visualizer camera
         self.zoom_scale = 40
@@ -223,15 +315,18 @@ class MAV:
     ###
     def update_render(self):
         # Redraw the mesh render
-        vertices = o3d.utility.Vector3dVector(self.rotate_mav(self.mav_points_rendering.T, self.rendering_R).T)
-        self.o3d_mesh.vertices = vertices
+        chaser_vertices = o3d.utility.Vector3dVector(self.rotate_mav(self.chaser_points.T, self.rendering_R).T)
+        leader_vertices = o3d.utility.Vector3dVector(self.rotate_mav(self.leader_points.T, self.rendering_R).T)
+        self.chaser_o3d_mesh.vertices = chaser_vertices
+        self.leader_o3d_mesh.vertices = leader_vertices
 
         # Remove old geometry and add new geometry
-        self.vis.update_geometry(self.o3d_mesh)
+        self.vis.update_geometry(self.chaser_o3d_mesh)
+        self.vis.update_geometry(self.leader_o3d_mesh)
 
         # # Add trajectory markers
         # new_marker = o3d.geometry.TriangleMesh.create_sphere(radius=(self.max_pos/200))
-        # new_marker = new_marker.translate((self.mav_state.east, self.mav_state.north, self.mav_state.altitude))
+        # new_marker = new_marker.translate((self.chaser_state.east, self.chaser_state.north, self.chaser_state.altitude))
         # self.vis.add_geometry(new_marker)
         # self.marker_counter += 1
 
@@ -243,6 +338,6 @@ class MAV:
         # ctr.set_front([self.max_pos*1, self.max_pos*1, self.max_pos*1])
         # ctr.set_up([0, 0, 1])
         #ctr.set_zoom((self.max_pos - (8e-2)*self.marker_counter) / self.zoom_scale)
-        ctr.set_lookat([self.mav_state.east, self.mav_state.north, self.mav_state.altitude])
+        ctr.set_lookat([self.chaser_state.east, self.chaser_state.north, self.chaser_state.altitude])
         
         self.vis.poll_events()
