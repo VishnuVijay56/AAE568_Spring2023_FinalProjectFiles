@@ -8,6 +8,8 @@ helper.py: collection of helper functions for chapter projects
 """
 
 import numpy as np
+from scipy.signal import cont2discrete
+import model_coef as M
 
 ###
 # Returns rotation matrix based upon 3-2-1 Euler

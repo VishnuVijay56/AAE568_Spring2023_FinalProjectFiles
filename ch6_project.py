@@ -14,12 +14,11 @@ from trim import compute_trim
 from compute_models import compute_model
 from wind_simulation import WindSimulation
 from signals import Signals
-
+import model_coef as M
 from mav_state import MAV_State
 from delta_state import Delta_State
 from autopilot_cmds import AutopilotCmds
-
-
+import helper
 # Create instance of MAV_Dynamics
 Ts = 0.01
 mav_dynamics = MAV_Dynamics(time_step=Ts) # time step in seconds
@@ -44,6 +43,9 @@ course_command = Signals(dc_offset=np.radians(0),
                          start_time=5.0,
                          frequency=0.015)
 
+helper.write_discrete_SS()
+from kalman_filter import KalmanFilter as KF
+kf = KF(mav_state)
 
 # # Find trim state
 # Va = 25
@@ -63,9 +65,9 @@ autopilot = Autopilot(Ts)
 
 # Run Simulation
 curr_time = 0
-end_time = 20 # seconds
+end_time = 25 # seconds
 view_sim = True
-sim_real_time = True
+sim_real_time = False
 display_graphs = True
 
 # # Print Control Parameters
@@ -81,16 +83,22 @@ if (display_graphs):
     east_history = np.zeros(int(end_time / Ts) + extra_elem)
 
     alt_history = np.zeros(int(end_time / Ts) + extra_elem)
+    alt_history_est = np.zeros(int(end_time / Ts) + extra_elem)
     alt_cmd_history = np.zeros(int(end_time / Ts) + extra_elem)
     
     airspeed_history = np.zeros(int(end_time / Ts) + extra_elem)
+    airspeed_history_est = np.zeros(int(end_time / Ts) + extra_elem)
     airspeed_cmd_history = np.zeros(int(end_time / Ts) + extra_elem)
     
     phi_history = np.zeros(int(end_time / Ts) + extra_elem)
+    phi_history_est = np.zeros(int(end_time / Ts) + extra_elem)
     theta_history = np.zeros(int(end_time / Ts) + extra_elem)
+    theta_history_est = np.zeros(int(end_time / Ts) + extra_elem)
     psi_history = np.zeros(int(end_time / Ts) + extra_elem)
+    psi_history_est = np.zeros(int(end_time / Ts) + extra_elem)
 
     chi_history = np.zeros(int(end_time / Ts) + extra_elem)
+    chi_history_est = np.zeros(int(end_time / Ts) + extra_elem)
     chi_cmd_history = np.zeros(int(end_time / Ts) + extra_elem)
     
     d_e_history = np.zeros(int(end_time / Ts) + extra_elem)
@@ -100,7 +108,8 @@ if (display_graphs):
     
     ind = 0
 
-
+delta = Delta_State(M.u_trim.item(0), M.u_trim.item(1), M.u_trim.item(2), M.u_trim.item(3))
+estimated_state = mav_state
 while (curr_time <= end_time) and (view_sim):
     step_start = time.time()
     #print("\nTime: " + str(round(curr_time, 2)) + " ", end=" -> \n")
@@ -111,11 +120,12 @@ while (curr_time <= end_time) and (view_sim):
     commands.altitude_command = altitude_command.square(curr_time)
     
     # autopilot
-    estimated_state = mav_dynamics.mav_state #this is the actual mav state
-    delta, commanded_state = autopilot.update(commands, estimated_state)
+    estimated_state = kf.update(estimated_state, mav_state, delta)
+    actual_state = mav_dynamics.mav_state
+    delta, commanded_state = autopilot.update(commands, estimated_state)#autopilot.update(commands, actual_state)#
     
     # wind sim
-    wind_steady_gust = wind_sim.update() # np.zeros((6,1)) #
+    wind_steady_gust = wind_sim.update() #np.zeros((6,1)) #
 
     # Update MAV dynamic state
     mav_dynamics.iterate(delta, wind_steady_gust)
@@ -129,21 +139,27 @@ while (curr_time <= end_time) and (view_sim):
     if (display_graphs):
         time_arr[ind] = curr_time
         
-        north_history[ind] = estimated_state.north
-        east_history[ind] = estimated_state.east
+        north_history[ind] = actual_state.north
+        east_history[ind] = actual_state.east
 
-        alt_history[ind] = estimated_state.altitude
+        alt_history[ind] = mav_state.altitude
+        alt_history_est[ind] = estimated_state.altitude
         alt_cmd_history[ind] = commands.altitude_command
 
-        airspeed_history[ind] = estimated_state.Va
+        airspeed_history[ind] = mav_state.Va
+        airspeed_history_est[ind] = estimated_state.Va
         airspeed_cmd_history[ind] = commands.airspeed_command
 
-        chi_history[ind] = estimated_state.chi * 180 / np.pi
+        chi_history[ind] = mav_state.chi * 180 / np.pi
+        chi_history_est[ind] = estimated_state.chi * 180 / np.pi
         chi_cmd_history[ind] = commands.course_command * 180 / np.pi
         
-        phi_history[ind] = estimated_state.phi * 180 / np.pi
-        theta_history[ind] = estimated_state.theta * 180 / np.pi
-        psi_history[ind] = estimated_state.psi * 180 / np.pi
+        phi_history[ind] = mav_state.phi * 180 / np.pi
+        phi_history_est[ind] = estimated_state.phi * 180 / np.pi
+        theta_history[ind] = mav_state.theta * 180 / np.pi
+        theta_history_est[ind] = estimated_state.theta * 180 / np.pi
+        psi_history[ind] = mav_state.psi * 180 / np.pi
+        psi_history_est[ind] = estimated_state.psi * 180 / np.pi
 
         d_e_history[ind] = delta.elevator_deflection * 180 / np.pi
         d_a_history[ind] = delta.aileron_deflection * 180 / np.pi
@@ -176,21 +192,24 @@ if (display_graphs):
     
     axes[0].plot(time_arr, alt_history)
     axes[0].plot(time_arr, alt_cmd_history)
-    axes[0].legend(["True", "Command"])
+    axes[0].plot(time_arr, alt_history_est)
+    axes[0].legend(["True", "Command", "Estimate"])
     axes[0].set_title("ALTITUDE")
     axes[0].set_xlabel("Time (seconds)")
     axes[0].set_ylabel("Altitude (meters)")
 
     axes[1].plot(time_arr, airspeed_history)
     axes[1].plot(time_arr, airspeed_cmd_history)
-    axes[1].legend(["True", "Command"])
+    axes[1].plot(time_arr, airspeed_history_est)
+    axes[1].legend(["True", "Command", "Estimate"])
     axes[1].set_title("Va")
     axes[1].set_xlabel("Time (seconds)")
     axes[1].set_ylabel("Airspeed (meters/second)")
 
     axes[2].plot(time_arr, chi_history)
     axes[2].plot(time_arr, chi_cmd_history)
-    axes[2].legend(["True", "Command"])
+    axes[2].plot(time_arr, chi_history_est)
+    axes[2].legend(["True", "Command", "Estimate"])
     axes[2].set_title("CHI")
     axes[2].set_xlabel("Time (seconds)")
     axes[2].set_ylabel("Course Heading (degrees)")

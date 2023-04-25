@@ -5,6 +5,7 @@ delta_state.py: class file for state of MAV deltas (aileron, rudder, elevator, t
     - History:
         - 
 """
+import numpy as np
 
 class Delta_State:
     def __init__(self, d_e = 0., d_a = 0., d_r = 0., d_t = 0.5):
@@ -35,3 +36,14 @@ class Delta_State:
               '; aileron =', round(self.aileron_deflection, rounding_digits),
               '; rudder =', round(self.rudder_deflection, rounding_digits),
               '; throttle =', round(self.throttle_level, rounding_digits))
+        
+    def get_ulon(self):
+        u_lon = np.array([[self.elevator_deflection], 
+                          [self.throttle_level]])
+        return u_lon
+
+    
+    def get_ulat(self):
+        u_lat = np.array([[self.aileron_deflection],
+                          [self.rudder_deflection]])
+        return u_lat

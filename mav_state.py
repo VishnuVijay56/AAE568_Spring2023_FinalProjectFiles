@@ -97,7 +97,7 @@ class MAV_State:
                           [float(self.Va * np.sin(self.alpha))], # w
                           [float(self.q)], # q
                           [float(self.theta)], # theta
-                          [-float(self.altitude)]]) # alt
+                          [float(self.altitude)]]) # alt
         return x_lon
 
 
@@ -117,6 +117,7 @@ class MAV_State:
 
         # alt
         self.altitude = x_lon.item(4)
+        self.chi = self.psi
 
     def print(self):
         print("MAV STATE:")
