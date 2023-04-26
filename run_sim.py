@@ -123,7 +123,7 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
         chaser_delta, commanded_state = chaser_autopilot.update(chaser_commands, estimated_chaser)
         
         # wind sim
-        wind_steady_gust = wind_sim.update() # np.zeros((6,1)) #
+        wind_steady_gust = np.zeros((6,1)) # wind_sim.update() # 
 
         # Update MAV dynamic state
         chaser_dynamics.iterate(chaser_delta, wind_steady_gust)
