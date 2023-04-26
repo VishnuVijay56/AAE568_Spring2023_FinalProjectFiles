@@ -59,8 +59,8 @@ course_command = Signals(dc_offset=np.radians(0),
 # compute_model(mav_dynamics, trim_state, trim_input)
 
 # Create instance of autopilot
-from autopilot_MPC import Autopilot
-autopilot = Autopilot(Ts, mpc_horizon, mav_state)
+from autopilot_MPC import Autopilot_MPC
+autopilot = Autopilot_MPC(Ts, mpc_horizon, mav_state)
 
 # Run Simulation
 curr_time = 0

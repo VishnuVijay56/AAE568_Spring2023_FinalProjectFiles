@@ -18,7 +18,7 @@ from mav_state import MAV_State
 from delta_state import Delta_State
 
 
-class Autopilot:
+class Autopilot_MPC:
     def __init__(self, ts_control, mpc_horizon, state):
         # set time step
         self.Ts = ts_control
@@ -75,7 +75,7 @@ class Autopilot:
         # B_Blat = M.B_lat
 
         # Q Gains
-        q_v = 1e-1
+        q_v = 1e1
         q_p = 1e0
         q_r = 1e-1
         q_phi = 1e0
@@ -136,7 +136,7 @@ class Autopilot:
 
         # Constraints
         max_u_lat = np.array([[np.radians(30)], [np.radians(30)]])
-        min_u_lat = -np.array([[np.radians(30)], [np.radians(30)]])
+        min_u_lat = -np.array([[np.radians(30)], [np.radians(0)]])
 
         self.mpc_lat.bounds['upper', '_u', 'u_lat'] = max_u_lat
         self.mpc_lat.bounds['lower', '_u', 'u_lat'] = min_u_lat
@@ -162,11 +162,11 @@ class Autopilot:
         # B_Blon = M.B_lon
 
         # Longitudinal Q gains
-        q_u = 1e1
-        q_w = 1e1
+        q_u = 1e2
+        q_w = 1e2
         q_q = 1e-2
         q_theta = 1e-1
-        q_h = 1e3
+        q_h = 1e4
         Q_lon = np.diag([q_u, q_w, q_q, q_theta, q_h])
 
         # R gains

@@ -33,7 +33,9 @@ from sim_cmds import SimCmds
 def run_two_plane_sim(t_span, sim_options : SimCmds):
     # Create instance of MAV_Dynamics
     Ts = 0.01
+    mpc_horizon = 75
     chaser_dynamics = MAV_Dynamics(time_step=Ts) # time step in seconds
+    chaser_state = chaser_dynamics.mav_state
     leader_dynamics = MAV_Dynamics(time_step=Ts) # time step in seconds
     chaser_state = chaser_dynamics.mav_state
     leader_state = leader_dynamics.mav_state
@@ -91,7 +93,9 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
 
     # Create instance of autopilot
     from autopilot_LQR import Autopilot
-    chaser_autopilot = Autopilot(Ts)
+    from autopilot_MPC import Autopilot_MPC
+    # chaser_autopilot = Autopilot(Ts)
+    chaser_autopilot = Autopilot_MPC(Ts, mpc_horizon, chaser_state)
     leader_autopilot = Autopilot(Ts)
 
     # Run Simulation
@@ -150,7 +154,7 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
         leader_delta, commanded_state = leader_autopilot.update(leader_commands, estimated_leader)
         
         # wind sim
-        wind_steady_gust = wind_sim.update() # np.zeros((6,1)) #
+        wind_steady_gust = np.zeros((6,1)) #wind_sim.update() #
 
         # Update MAV dynamic state
         chaser_dynamics.iterate(chaser_delta, wind_steady_gust)
