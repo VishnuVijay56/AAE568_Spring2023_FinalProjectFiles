@@ -96,12 +96,12 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
 
     # Create instance of autopilot
     from autopilot_LQR import Autopilot
-    from autopilot_MPC import Autopilot_MPC
+    from autopilot_MPC_throttle_fault import Autopilot_MPC_TF
     # chaser_autopilot = Autopilot(Ts)
     if use_LQR:
         chaser_autopilot = Autopilot(Ts)
     else:
-        chaser_autopilot = Autopilot_MPC(Ts, mpc_horizon, chaser_state)
+        chaser_autopilot = Autopilot_MPC_TF(Ts, mpc_horizon, chaser_state)
     leader_autopilot = Autopilot(Ts)
 
     # Run Simulation

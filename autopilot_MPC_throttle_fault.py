@@ -23,7 +23,7 @@ class Autopilot_MPC_TF:
         # Variable Definitions !!!!NOTE: Arrays are formatted like: [min, max]!!!!
         # Saturation (Actuator Failure)
         self.Saturate = True
-        self.a_sat = np.array([np.deg2rad(0), np.deg2rad(30)])
+        self.a_sat = np.array([np.deg2rad(-30), np.deg2rad(30)])
         self.r_sat = np.array([np.deg2rad(-30), np.deg2rad(30)])
         self.e_sat = np.array([np.deg2rad(-30), np.deg2rad(30)])
         self.t_sat = np.array([0., 0.])
@@ -32,7 +32,7 @@ class Autopilot_MPC_TF:
         a_con = np.array([np.deg2rad(-30), np.deg2rad(30)])
         r_con = np.array([np.deg2rad(-30), np.deg2rad(30)])
         e_con = np.array([np.deg2rad(-30), np.deg2rad(30)])
-        t_con = np.array([0., 1.])
+        t_con = np.array([0., 0.])
 
         # Lateral Gains
         # Q Lateral Gains
@@ -313,7 +313,7 @@ class Autopilot_MPC_TF:
         Lateral MPC
         '''
 
-        err_Va = state.Va - cmd.airspeed_command
+        err_Va = 0 #state.Va - cmd.airspeed_command
 
         chi_c = wrap(cmd.course_command, state.chi)
         err_chi = self.saturate(state.chi - chi_c, -np.radians(15), np.radians(15))
@@ -340,7 +340,7 @@ class Autopilot_MPC_TF:
         Longitudinal MPC
         '''
         alt_c = self.saturate(cmd.altitude_command, state.altitude - 0.2*AP.altitude_zone, state.altitude + 0.2*AP.altitude_zone)
-        err_alt = state.altitude - alt_c
+        err_alt = 0# state.altitude - alt_c
         err_down = -err_alt
         
         self.int_down = self.int_down + (self.Ts / 2) * (err_down + self.err_down_delay)

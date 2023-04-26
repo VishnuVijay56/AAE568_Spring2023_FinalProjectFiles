@@ -23,7 +23,7 @@ class Autopilot_MPC:
         # Variable Definitions !!!!NOTE: Arrays are formatted like: [min, max]!!!!
         # Saturation (Actuator Failure)
         self.Saturate = True
-        self.a_sat = np.array([np.deg2rad(0), np.deg2rad(30)])
+        self.a_sat = np.array([np.deg2rad(-30), np.deg2rad(30)])
         self.r_sat = np.array([np.deg2rad(-30), np.deg2rad(30)])
         self.e_sat = np.array([np.deg2rad(-30), np.deg2rad(30)])
         self.t_sat = np.array([0., 1.])
