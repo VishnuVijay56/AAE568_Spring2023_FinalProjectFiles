@@ -31,9 +31,12 @@ from sim_cmds import SimCmds
 #####
 
 def run_two_plane_sim(t_span, sim_options : SimCmds):
-    # Create instance of MAV_Dynamics
+    # General Definitions
     Ts = 0.01
-    mpc_horizon = 75
+    mpc_horizon = 25
+    use_LQR = False
+
+    # Create instance of MAV_Dynamics
     chaser_dynamics = MAV_Dynamics(time_step=Ts) # time step in seconds
     chaser_state = chaser_dynamics.mav_state
     leader_dynamics = MAV_Dynamics(time_step=Ts) # time step in seconds
@@ -52,15 +55,15 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
     # Chaser Autopilot message
     chaser_commands = AutopilotCmds()
     Va_command_chaser = Signals(dc_offset=25.0,
-                                amplitude=3.0,
+                                amplitude=0.0,
                                 start_time=2.0,
                                 frequency=0.01)
     altitude_command_chaser = Signals(dc_offset=0.0,
-                                    amplitude=15.0,
+                                    amplitude=0.0,
                                     start_time=0.0,
                                     frequency=0.02)
     course_command_chaser = Signals(dc_offset=np.radians(0),
-                                    amplitude=np.radians(45),
+                                    amplitude=np.radians(0),
                                     start_time=5.0,
                                     frequency=0.015)
 
@@ -95,7 +98,10 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
     from autopilot_LQR import Autopilot
     from autopilot_MPC import Autopilot_MPC
     # chaser_autopilot = Autopilot(Ts)
-    chaser_autopilot = Autopilot_MPC(Ts, mpc_horizon, chaser_state)
+    if use_LQR:
+        chaser_autopilot = Autopilot(Ts)
+    else:
+        chaser_autopilot = Autopilot_MPC(Ts, mpc_horizon, chaser_state)
     leader_autopilot = Autopilot(Ts)
 
     # Run Simulation

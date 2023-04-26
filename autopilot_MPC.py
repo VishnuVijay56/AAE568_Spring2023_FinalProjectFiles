@@ -20,6 +20,51 @@ from delta_state import Delta_State
 
 class Autopilot_MPC:
     def __init__(self, ts_control, mpc_horizon, state):
+        # Variable Definitions !!!!NOTE: Arrays are formatted like: [min, max]!!!!
+        # Saturation (Actuator Failure)
+        self.Saturate = True
+        self.a_sat = np.array([np.deg2rad(0), np.deg2rad(30)])
+        self.r_sat = np.array([np.deg2rad(-30), np.deg2rad(30)])
+        self.e_sat = np.array([np.deg2rad(-30), np.deg2rad(30)])
+        self.t_sat = np.array([0., 1.])
+
+        # Constraints (MPC Constraints)
+        a_con = np.array([np.deg2rad(-30), np.deg2rad(30)])
+        r_con = np.array([np.deg2rad(-30), np.deg2rad(30)])
+        e_con = np.array([np.deg2rad(-30), np.deg2rad(30)])
+        t_con = np.array([0., 1.])
+
+        # Lateral Gains
+        # Q Lateral Gains
+        q_v = 1e-10
+        q_p = 1e0
+        q_r = 1e-1
+        q_phi = 1e0
+        q_chi = 1e2
+        Q_lat = np.diag([q_v, q_p, q_r, q_phi, q_chi])
+
+        # R Lateral Gains
+        r_a = 1e1
+        r_r = 1e0
+        R_lat = np.array([[r_a], [r_r]])
+
+        # Longitudinal Gains
+        # Q Longitudinal Gains
+        q_u = 1e-10
+        q_w = 1e-10
+        q_q = 1e-1
+        q_theta = 1e0
+        q_h = 1e-10
+        Q_lon = np.diag([q_u, q_w, q_q, q_theta, q_h])
+
+        # R Longitudinal Gains
+        r_e = 1e0
+        r_t = 1e0
+        R_lon = np.array([[r_e], [r_t]])
+
+        '''
+        Rest of stuff
+        '''
         # set time step
         self.Ts = ts_control
 
@@ -75,17 +120,24 @@ class Autopilot_MPC:
         # B_Blat = M.B_lat
 
         # Q Gains
-        q_v = 1e1
-        q_p = 1e0
-        q_r = 1e-1
-        q_phi = 1e0
-        q_chi = 1e1
-        Q_lat = np.diag([q_v, q_p, q_r, q_phi, q_chi])
+        # q_v = 1e1
+        # q_p = 1e0
+        # q_r = 1e-1
+        # q_phi = 1e0
+        # q_chi = 1e1
+
+        # Q gains for landing
+        # q_v = 1e-10
+        # q_p = 1e0
+        # q_r = 1e-1
+        # q_phi = 1e0
+        # q_chi = 1e2
+        # Q_lat = np.diag([q_v, q_p, q_r, q_phi, q_chi])
 
         # R Gains
-        r_a = 1e1
-        r_r = 1e0
-        R_lat = np.array([[r_a], [r_r]])  # Do-MPC does not like R as a matrix. Instead, it wants one "input penalty"
+        # r_a = 1e1
+        # r_r = 1e0
+        # R_lat = np.array([[r_a], [r_r]])  # Do-MPC does not like R as a matrix. Instead, it wants one "input penalty"
         # for each input, so for this case it is a column vector
 
         ###
@@ -135,8 +187,11 @@ class Autopilot_MPC:
         self.mpc_lat.set_rterm(u_lat=R_lat)  # input penalty
 
         # Constraints
-        max_u_lat = np.array([[np.radians(30)], [np.radians(30)]])
-        min_u_lat = -np.array([[np.radians(30)], [np.radians(0)]])
+        # max_u_lat = np.array([[np.radians(30)], [np.radians(30)]])
+        # min_u_lat = -np.array([[np.radians(30)], [np.radians(30)]])
+
+        max_u_lat = np.array([[a_con[1]], [r_con[1]]])
+        min_u_lat = np.array([[a_con[0]], [r_con[0]]])
 
         self.mpc_lat.bounds['upper', '_u', 'u_lat'] = max_u_lat
         self.mpc_lat.bounds['lower', '_u', 'u_lat'] = min_u_lat
@@ -162,17 +217,25 @@ class Autopilot_MPC:
         # B_Blon = M.B_lon
 
         # Longitudinal Q gains
-        q_u = 1e2
-        q_w = 1e2
-        q_q = 1e-2
-        q_theta = 1e-1
-        q_h = 1e4
-        Q_lon = np.diag([q_u, q_w, q_q, q_theta, q_h])
+        # q_u = 1e2
+        # q_w = 1e2
+        # q_q = 1e-2
+        # q_theta = 1e-1
+        # q_h = 1e4
+        # Q_lon = np.diag([q_u, q_w, q_q, q_theta, q_h])
+
+        # Q gains for landing
+        # q_u = 1e-10
+        # q_w = 1e-10
+        # q_q = 1e-1
+        # q_theta = 1e0
+        # q_h = 1e-10
+        # Q_lon = np.diag([q_u, q_w, q_q, q_theta, q_h])
 
         # R gains
-        r_e = 1e0
-        r_t = 1e0
-        R_lon = np.array([[r_e], [r_t]])
+        # r_e = 1e0
+        # r_t = 1e0
+        # R_lon = np.array([[r_e], [r_t]])
 
         ###
         # Start Defining Longitudinal MPC
@@ -221,13 +284,16 @@ class Autopilot_MPC:
         self.mpc_lon.set_rterm(u_lon=R_lon)  # input penalty
 
         # Constraints
-        max_u_lon = np.array([[np.radians(30)], [1.]])
-        min_u_lon = np.array([[-np.radians(30)], [0.]])
+        # max_u_lon = np.array([[np.radians(30)], [0.]])
+        # min_u_lon = np.array([[-np.radians(30)], [0.]])
+
+        max_u_lon = np.array([[e_con[1]], [t_con[1]]])
+        min_u_lon = np.array([[e_con[0]], [t_con[0]]])
 
         self.mpc_lon.bounds['upper', '_u', 'u_lon'] = max_u_lon
         self.mpc_lon.bounds['lower', '_u', 'u_lon'] = min_u_lon
 
-        # Scaling
+        # Scaling?????
         scaling_array_lon = np.array([1, 1, 1, 1, 1])
         self.mpc_lon.scaling['_x', 'x_lon'] = scaling_array_lon
 
@@ -262,8 +328,13 @@ class Autopilot_MPC:
                           [err_chi]], dtype=object)
 
         lat_control = self.mpc_lat.make_step(x_lat)
-        delta_a = lat_control[0, 0]
-        delta_r = lat_control[1, 0]
+
+        if self.Saturate:
+            delta_a = self.saturate(lat_control[0, 0], self.a_sat[0], self.a_sat[1])
+            delta_r = self.saturate(lat_control[1, 0], self.r_sat[0], self.r_sat[1])
+        else:
+            delta_a = lat_control[0, 0]
+            delta_r = lat_control[1, 0]
 
         '''
         Longitudinal MPC
@@ -285,8 +356,13 @@ class Autopilot_MPC:
                           [err_down]], dtype=object)  # downward position
 
         lon_control = self.mpc_lon.make_step(x_lon)
-        delta_e = lon_control[0, 0]
-        delta_t = lon_control[1, 0]
+
+        if self.Saturate:
+            delta_e = self.saturate(lon_control[0, 0], self.e_sat[0], self.e_sat[1])
+            delta_t = self.saturate(lon_control[1, 0], self.t_sat[0], self.t_sat[1])
+        else:
+            delta_e = lon_control[0, 0]
+            delta_t = lon_control[1, 0]
 
         # construct output and commanded states
         delta = Delta_State(d_e = delta_e,
