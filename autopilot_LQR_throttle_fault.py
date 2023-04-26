@@ -37,12 +37,12 @@ class Autopilot_TF:
         q_v = 1e-1
         q_p = 1e0
         q_r = 1e-1
-        q_phi = 1e0
-        q_chi = 1e1
+        q_phi = 1e3
+        q_chi = 0
         Q_lat = np.diag([q_v, q_p, q_r, q_phi, q_chi])
 
         r_a = 1e1
-        r_r = 1e0
+        r_r = 1e1
         R_lat = np.diag([r_a, r_r])
 
         P_lat = solve_continuous_are(A_lat, B_lat, Q_lat, R_lat)
@@ -57,8 +57,8 @@ class Autopilot_TF:
         q_u = 1e1
         q_w = 1e1
         q_q = 1e-2
-        q_theta = 1e2
-        q_h = 1e3
+        q_theta = 1e4
+        q_h = 0
         Q_lon = np.diag([q_u, q_w, q_q, q_theta, q_h])
 
         r_e = 1e0
