@@ -1,8 +1,8 @@
 """
-LQR autopilot block for mavsim_python
-    - Beard & McLain, PUP, 2012
-    - Last Update:
-        2/6/2019 - RWB
+autopilot_LQR_throttle_fault.py: autopilot designed to stabilize flight
+                                 after known throttle fault
+    - Author: Vishnu Vijay
+    - Created: 4/24/23
 """
 
 import numpy as np
@@ -18,7 +18,7 @@ from mav_state import MAV_State
 from delta_state import Delta_State
 
 
-class Autopilot:
+class Autopilot_TF:
     def __init__(self, ts_control):
         # set time step
         self.Ts = ts_control
@@ -57,7 +57,7 @@ class Autopilot:
         q_u = 1e1
         q_w = 1e1
         q_q = 1e-2
-        q_theta = 1e-1
+        q_theta = 1e2
         q_h = 1e3
         Q_lon = np.diag([q_u, q_w, q_q, q_theta, q_h])
 

@@ -38,15 +38,15 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
 
     # Create instance of MAV_Dynamics
     chaser_dynamics = MAV_Dynamics(time_step=Ts) # time step in seconds
+
     chaser_state = chaser_dynamics.mav_state
     leader_dynamics = MAV_Dynamics(time_step=Ts) # time step in seconds
+
     chaser_state = chaser_dynamics.mav_state
-    leader_state = leader_dynamics.mav_state
-    leader_dynamics.mav_state.altitude += 10
     
     # Create instance of MAV object using MAV_State object
     fullscreen = False
-    this_mav = MAV(chaser_state, leader_state, fullscreen, sim_options.view_sim)
+    this_mav = MAV(chaser_state, fullscreen, sim_options.view_sim)
     
     # Create instance of wind simulation
     steady_state_wind = np.array([[0., 0., 0.]]).T
@@ -66,21 +66,7 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
                                     amplitude=np.radians(0),
                                     start_time=5.0,
                                     frequency=0.015)
-
-    # Leader Autopilot message
-    leader_commands = AutopilotCmds()
-    Va_command_leader = Signals(dc_offset=25.0,
-                                amplitude=3.0,
-                                start_time=2.0,
-                                frequency=0.01)
-    altitude_command_leader = Signals(dc_offset=0.0,
-                                    amplitude=10.0,
-                                    start_time=0.0,
-                                    frequency=0.02)
-    course_command_leader = Signals(dc_offset=np.radians(0),
-                                    amplitude=np.radians(-45),
-                                    start_time=5.0,
-                                    frequency=0.015)
+    
 
     # # Find trim state
     # Va = 25
@@ -102,6 +88,7 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
         chaser_autopilot = Autopilot(Ts)
     else:
         chaser_autopilot = Autopilot_MPC_TF(Ts, mpc_horizon, chaser_state)
+
     leader_autopilot = Autopilot(Ts)
 
     # Run Simulation
@@ -149,28 +136,16 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
         if (not sim_options.use_kf):
             estimated_chaser = chaser_dynamics.mav_state #this is the actual mav state
         chaser_delta, commanded_state = chaser_autopilot.update(chaser_commands, estimated_chaser)
-
-        # Leader: autopilot commands
-        leader_commands.airspeed_command = Va_command_leader.square(curr_time)
-        leader_commands.course_command = course_command_leader.square(curr_time)
-        leader_commands.altitude_command = altitude_command_leader.square(curr_time)
-        # autopilot
-        if (not sim_options.use_kf):
-            estimated_leader = leader_dynamics.mav_state #this is the actual mav state
-        leader_delta, commanded_state = leader_autopilot.update(leader_commands, estimated_leader)
         
         # wind sim
         wind_steady_gust = wind_sim.update() #np.zeros((6,1)) #
 
         # Update MAV dynamic state
         chaser_dynamics.iterate(chaser_delta, wind_steady_gust)
-        leader_dynamics.iterate(leader_delta, wind_steady_gust)
 
         # Update MAV mesh for viewing
-        this_mav.set_chaser_state(chaser_dynamics.mav_state)
-        this_mav.set_leader_state(leader_dynamics.mav_state)
-        this_mav.update_chaser_state()
-        this_mav.update_leader_state()
+        this_mav.set_mav_state(chaser_dynamics.mav_state)
+        this_mav.update_mav_state()
         if(this_mav.view_sim):
             this_mav.update_render()
         
