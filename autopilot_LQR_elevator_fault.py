@@ -2,7 +2,7 @@
 autopilot_LQR_throttle_fault.py: autopilot designed to stabilize flight
                                  after known throttle fault
     - Author: Vishnu Vijay
-    - Created: 4/24/23
+    - Created: 4/26/23
 """
 
 import numpy as np
@@ -18,7 +18,7 @@ from mav_state import MAV_State
 from delta_state import Delta_State
 
 
-class Autopilot_TF:
+class Autopilot_EF:
     def __init__(self, ts_control):
         # set time step
         self.Ts = ts_control
@@ -38,7 +38,7 @@ class Autopilot_TF:
         q_p = 1e0
         q_r = 1e-1
         q_phi = 1e3
-        q_chi = 0
+        q_chi = 1e0
         Q_lat = np.diag([q_v, q_p, q_r, q_phi, q_chi])
 
         r_a = 1e1
@@ -54,15 +54,15 @@ class Autopilot_TF:
         A_lon = M.A_lon
         B_lon = M.B_lon
         
-        q_u = 0#1e3
-        q_w = 0#1e3
-        q_q = 0#1e-2
+        q_u = 1e2
+        q_w = 1e2
+        q_q = 0 #1e-2
         q_theta = 1e4
         q_h = 0
         Q_lon = np.diag([q_u, q_w, q_q, q_theta, q_h])
 
         r_e = 1e0
-        r_t = 1e-3
+        r_t = 1e1
         R_lon = np.diag([r_e, r_t])
 
         P_lon = solve_continuous_are(A_lon, B_lon, Q_lon, R_lon)
@@ -104,7 +104,7 @@ class Autopilot_TF:
 
         temp = -self.K_lon @ x_lon
         delta_e = self.saturate(temp.item(0) + self.trim_d_e, -np.radians(30), np.radians(30))
-        delta_t = self.saturate((temp.item(1) + self.trim_d_t), 0., 0.)
+        delta_t = self.saturate((temp.item(1) + self.trim_d_t), 0., 1.)
 
         # construct output and commanded states
         delta = Delta_State(d_e = delta_e,

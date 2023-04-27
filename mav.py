@@ -190,6 +190,7 @@ class MAV:
     def start_visualizer(self, fullscreen):
         # Sets up reference frame mesh for rendering
         self.frame = o3d.geometry.TriangleMesh.create_coordinate_frame(self.max_pos / 10)
+        self.vehicle_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(self.max_pos / 10)
 
         # Create mesh for MAV
         self.rendering_R = EulerRotationMatrix(np.pi, 0, np.pi / 2) # NED -> ENU coordinates
@@ -214,6 +215,7 @@ class MAV:
         ctr.set_up([0, 0, 1])
         ctr.set_zoom(self.max_pos / self.zoom_scale)
         self.marker_counter = 0
+        self.counter = 0
 
 
     ###
@@ -231,20 +233,26 @@ class MAV:
         # Remove old geometry and add new geometry
         self.vis.update_geometry(self.o3d_mesh)
 
+        # Move vehicle frame to 
+
         # # Add trajectory markers
-        # new_marker = o3d.geometry.TriangleMesh.create_sphere(radius=(self.max_pos/200))
-        # new_marker = new_marker.translate((self.mav_state.east, self.mav_state.north, self.mav_state.altitude))
-        # self.vis.add_geometry(new_marker)
-        # self.marker_counter += 1
+        # if (self.counter % 100 == 0):
+        #     new_marker = o3d.geometry.TriangleMesh.create_sphere(radius=(self.max_pos/200))
+        #     new_marker = new_marker.translate((self.mav_state.east, self.mav_state.north, self.mav_state.altitude))
+        #     self.vis.add_geometry(new_marker)
+        #     self.marker_counter += 1
 
         # Update visualizer
         self.vis.update_renderer()
 
         # Change where camera is looking - center on plane
         ctr = self.vis.get_view_control()
-        # ctr.set_front([self.max_pos*1, self.max_pos*1, self.max_pos*1])
-        # ctr.set_up([0, 0, 1])
-        #ctr.set_zoom((self.max_pos - (8e-2)*self.marker_counter) / self.zoom_scale)
+        ctr.set_front([self.max_pos*1, self.max_pos*1, self.max_pos*1])
+        ctr.set_up([0, 0, 1])
+        # ctr.set_zoom((self.max_pos - (8e-1)*self.counter) / self.zoom_scale)
         ctr.set_lookat([self.mav_state.east, self.mav_state.north, self.mav_state.altitude])
+        # ctr.camera_local_rotate(0,0)
+        # ctr.camera_local_translate(self.mav_state.north, self.mav_state.east, -self.mav_state.altitude)
         
         self.vis.poll_events()
+        self.counter += 1

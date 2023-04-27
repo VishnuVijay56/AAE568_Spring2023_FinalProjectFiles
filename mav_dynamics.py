@@ -9,6 +9,7 @@ mav_dynamics.py: class file for dynamics of mav
 
 """
 
+from copy import copy
 import numpy as np
 from helper import QuaternionToEuler, QuaternionToRotationMatrix
 
@@ -210,10 +211,10 @@ class MAV_Dynamics:
         #print("EULER Rates: p (" + str(p) + "); q (" + str(q) + "); r (" + str(r) + ")")
         
         # Pull values from deflections
-        d_a = deflections.aileron_deflection
-        d_e = deflections.elevator_deflection
-        d_r = deflections.rudder_deflection
-        d_t = deflections.throttle_level
+        d_a = copy(deflections.aileron_deflection)
+        d_e = copy(deflections.elevator_deflection)
+        d_r = copy(deflections.rudder_deflection)
+        d_t = copy(deflections.throttle_level)
 
         # Store delta values in global var
         self.delta.aileron_deflection = d_a
