@@ -22,6 +22,7 @@ from mav_state import MAV_State
 from delta_state import Delta_State
 from autopilot_cmds import AutopilotCmds
 from sim_cmds import SimCmds
+from kalman_filter import KalmanFilter
 
 
 #####
@@ -29,12 +30,34 @@ from sim_cmds import SimCmds
 #
 #
 #####
+def error_calculation(vector_1, vector_2):
+    error_vs_time = vector_1 - vector_2
+    error_total = np.sum(error_vs_time**2)
+    return error_total
 
 def run_two_plane_sim(t_span, sim_options : SimCmds):
     # General Definitions
     Ts = 0.01
     mpc_horizon = 25
-    use_LQR = False
+    controller_type = "MPC"  # "LQR", or "MPC"
+
+    curr_time = t_span[0]
+    end_time = t_span[1]  # seconds
+
+    # Faults
+    case = 0
+    if (case == 0):
+        fault_time = end_time
+        switching_delay = end_time
+    elif(case ==1):  # Throttle
+        fault_time = 6
+        switching_delay = 3
+    elif (case == 2):  # Elevator
+        fault_time = 1
+        switching_delay = 3
+    fault_coord = None
+    final_coord = None
+
 
     # Create instance of MAV_Dynamics
     chaser_dynamics = MAV_Dynamics(time_step=Ts) # time step in seconds
@@ -54,42 +77,43 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
     
     # Chaser Autopilot message
     chaser_commands = AutopilotCmds()
-    Va_command_chaser = Signals(dc_offset=25.0,
-                                amplitude=0.0,
+    Va_command_chaser = Signals(dc_offset=22.0,
+                                amplitude=3.0,
                                 start_time=2.0,
-                                frequency=0.01)
+                                frequency=0.001)
     altitude_command_chaser = Signals(dc_offset=0.0,
-                                    amplitude=0.0,
+                                    amplitude=15.0,
                                     start_time=0.0,
-                                    frequency=0.02)
+                                    frequency=0.002)
     course_command_chaser = Signals(dc_offset=np.radians(0),
-                                    amplitude=np.radians(0),
+                                    amplitude=np.radians(45),
                                     start_time=5.0,
-                                    frequency=0.015)
-    
-
-    # # Find trim state
-    # Va = 25
-    # gamma_deg = 0
-    # gamma_rad = gamma_deg * np.pi/180
-    # trim_state, trim_input = compute_trim(mav_dynamics, Va, gamma_rad)
-    # mav_dynamics.internal_state = trim_state
-    # delta_trim = trim_input
-    # #delta_trim.print()
-
-    # # Compute state space model linearized about trim
-    # compute_model(mav_dynamics, trim_state, trim_input)
+                                    frequency=0.0015)
 
     # Create instance of autopilot
     from autopilot_LQR import Autopilot
-    from autopilot_MPC_throttle_fault import Autopilot_MPC_TF
-    # chaser_autopilot = Autopilot(Ts)
-    if use_LQR:
+
+    if controller_type == "LQR":
+        from autopilot_LQR import Autopilot
+        from autopilot_LQR_elevator_fault import Autopilot_EF
+        from autopilot_LQR_throttle_fault import Autopilot_TF
+
+        chaser_autopilot_tf = Autopilot_TF(Ts)
+        chaser_autopilot_ef = Autopilot_EF(Ts)
         chaser_autopilot = Autopilot(Ts)
+    elif controller_type == "MPC":
+        from autopilot_MPC import Autopilot_MPC
+        from autopilot_MPC_throttle_fault import Autopilot_MPC_TF
+        from autopilot_MPC_elevator_fault import Autopilot_MPC_EF
+
+        chaser_autopilot_tf = Autopilot_MPC_TF(Ts, mpc_horizon, chaser_state)
+        chaser_autopilot_ef = Autopilot_MPC_EF(Ts, mpc_horizon, chaser_state)
+        chaser_autopilot = Autopilot_MPC(Ts, mpc_horizon, chaser_state)
     else:
-        chaser_autopilot = Autopilot_MPC_TF(Ts, mpc_horizon, chaser_state)
+        print("Goofy Ahh")
 
     leader_autopilot = Autopilot(Ts)
+    kf = KalmanFilter(chaser_state)
 
     # Run Simulation
     curr_time = t_span[0]
@@ -99,31 +123,45 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
 
     if (sim_options.display_graphs):
         time_arr = np.zeros(int(end_time / Ts) + extra_elem)
-        
+
         north_history = np.zeros(int(end_time / Ts) + extra_elem)
         east_history = np.zeros(int(end_time / Ts) + extra_elem)
 
         alt_history = np.zeros(int(end_time / Ts) + extra_elem)
+        alt_history_est = np.zeros(int(end_time / Ts) + extra_elem)
+        alt_history_meas = np.zeros(int(end_time / Ts) + extra_elem)
         alt_cmd_history = np.zeros(int(end_time / Ts) + extra_elem)
-        
+
         airspeed_history = np.zeros(int(end_time / Ts) + extra_elem)
+        airspeed_history_est = np.zeros(int(end_time / Ts) + extra_elem)
+        airspeed_history_meas = np.zeros(int(end_time / Ts) + extra_elem)
         airspeed_cmd_history = np.zeros(int(end_time / Ts) + extra_elem)
-        
+
         phi_history = np.zeros(int(end_time / Ts) + extra_elem)
+        phi_history_est = np.zeros(int(end_time / Ts) + extra_elem)
+        phi_history_meas = np.zeros(int(end_time / Ts) + extra_elem)
         theta_history = np.zeros(int(end_time / Ts) + extra_elem)
+        theta_history_est = np.zeros(int(end_time / Ts) + extra_elem)
+        theta_history_meas = np.zeros(int(end_time / Ts) + extra_elem)
         psi_history = np.zeros(int(end_time / Ts) + extra_elem)
+        psi_history_est = np.zeros(int(end_time / Ts) + extra_elem)
+        psi_history_meas = np.zeros(int(end_time / Ts) + extra_elem)
 
         chi_history = np.zeros(int(end_time / Ts) + extra_elem)
+        chi_history_est = np.zeros(int(end_time / Ts) + extra_elem)
+        chi_history_meas = np.zeros(int(end_time / Ts) + extra_elem)
         chi_cmd_history = np.zeros(int(end_time / Ts) + extra_elem)
-        
+
         d_e_history = np.zeros(int(end_time / Ts) + extra_elem)
         d_a_history = np.zeros(int(end_time / Ts) + extra_elem)
         d_r_history = np.zeros(int(end_time / Ts) + extra_elem)
         d_t_history = np.zeros(int(end_time / Ts) + extra_elem)
         
-        ind = 0
+    ind = 0
 
+    time_start = time.time()
 
+    chaser_delta = chaser_dynamics.delta
     while (curr_time <= end_time):
         step_start = time.time()
         #print("\nTime: " + str(round(curr_time, 2)) + " ", end=" -> \n")
@@ -132,13 +170,35 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
         chaser_commands.airspeed_command = Va_command_chaser.square(curr_time)
         chaser_commands.course_command = course_command_chaser.square(curr_time)
         chaser_commands.altitude_command = altitude_command_chaser.square(curr_time)
-        # autopilot
+
+        # Kalman Filter
         if (not sim_options.use_kf):
             estimated_chaser = chaser_dynamics.mav_state #this is the actual mav state
-        chaser_delta, commanded_state = chaser_autopilot.update(chaser_commands, estimated_chaser)
-        
+        else:
+            estimated_chaser, measured_state = kf.update(chaser_state, chaser_delta)
+
+        # Autopilot
+        if (case == 1) and (curr_time > fault_time + switching_delay):
+            chaser_delta, commanded_state = chaser_autopilot_tf.update(chaser_commands, estimated_chaser)
+
+            if (fault_coord == None):
+                fault_coord = (chaser_state.north, chaser_state.east, chaser_state.altitude)
+
+        elif (case == 2) and (curr_time > fault_time + switching_delay):
+            chaser_delta, commanded_state = chaser_autopilot_ef.update(chaser_commands, estimated_chaser)
+
+            if (fault_coord == None):
+                fault_coord = (chaser_state.north, chaser_state.east, chaser_state.altitude)
+        else:
+            chaser_delta, commanded_state = chaser_autopilot.update(chaser_commands, estimated_chaser)
+
+
+
+
+
+
         # wind sim
-        wind_steady_gust = wind_sim.update() #np.zeros((6,1)) #
+        wind_steady_gust = wind_sim.update()  # np.zeros((6,1))  #
 
         # Update MAV dynamic state
         chaser_dynamics.iterate(chaser_delta, wind_steady_gust)
@@ -152,22 +212,31 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
         # DEBUGGING - Print Vehicle's state
         if (sim_options.display_graphs):
             time_arr[ind] = curr_time
-            
-            north_history[ind] = estimated_chaser.north
-            east_history[ind] = estimated_chaser.east
 
-            alt_history[ind] = estimated_chaser.altitude
+            north_history[ind] = chaser_state.north
+            east_history[ind] = chaser_state.east
+
+            alt_history[ind] = chaser_state.altitude
+            alt_history_est[ind] = estimated_chaser.altitude
+            alt_history_meas[ind] = measured_state.altitude
             alt_cmd_history[ind] = chaser_commands.altitude_command
 
-            airspeed_history[ind] = estimated_chaser.Va
+            airspeed_history[ind] = chaser_state.Va
+            airspeed_history_est[ind] = estimated_chaser.Va
+            airspeed_history_meas[ind] = measured_state.Va
             airspeed_cmd_history[ind] = chaser_commands.airspeed_command
 
-            chi_history[ind] = estimated_chaser.chi * 180 / np.pi
+            chi_history[ind] = chaser_state.chi * 180 / np.pi
+            chi_history_est[ind] = estimated_chaser.chi * 180 / np.pi
+            chi_history_meas[ind] = measured_state.chi * 180 / np.pi
             chi_cmd_history[ind] = chaser_commands.course_command * 180 / np.pi
-            
-            phi_history[ind] = estimated_chaser.phi * 180 / np.pi
-            theta_history[ind] = estimated_chaser.theta * 180 / np.pi
-            psi_history[ind] = estimated_chaser.psi * 180 / np.pi
+
+            phi_history[ind] = chaser_state.phi * 180 / np.pi
+            phi_history_est[ind] = estimated_chaser.phi * 180 / np.pi
+            theta_history[ind] = chaser_state.theta * 180 / np.pi
+            theta_history_est[ind] = estimated_chaser.theta * 180 / np.pi
+            psi_history[ind] = chaser_state.psi * 180 / np.pi
+            psi_history_est[ind] = estimated_chaser.psi * 180 / np.pi
 
             d_e_history[ind] = chaser_delta.elevator_deflection * 180 / np.pi
             d_a_history[ind] = chaser_delta.aileron_deflection * 180 / np.pi
@@ -185,29 +254,79 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
         curr_time += Ts
         ind += 1
 
+    time_end = time.time()
+
+    ## Glide Path Angle Calculations
+    if (case != 0):
+        final_coord = (chaser_state.north, chaser_state.east, chaser_state.altitude)
+        alt_diff = fault_coord[2] - final_coord[2]
+        ground_dist = np.sqrt(
+            np.power(fault_coord[0] - final_coord[0], 2) + np.power(fault_coord[1] - final_coord[1], 2))
+        glide_angle = np.arctan2(alt_diff, ground_dist)
+        print("Fault: ", fault_coord, " --> ", final_coord)
+        print("\nGLIDE ANGLE (deg): ", np.rad2deg(glide_angle))
+        print()
+
+    if (sim_options.display_graphs):
+        altitude_error = error_calculation(alt_history, alt_cmd_history)
+        airspeed_error = error_calculation(airspeed_history, airspeed_cmd_history)
+        chi_error = error_calculation(chi_history, chi_cmd_history)
+
+        print("Altitude Error: ", altitude_error)
+        print("Airspeed Error: ", airspeed_error)
+        print("Chi Error: ", chi_error)
 
     if (sim_options.display_graphs):
         # Main State tracker
-        fig1, axes = plt.subplots(1, 3)
-        
-        axes[0].plot(time_arr, alt_history)
-        axes[0].plot(time_arr, alt_cmd_history)
-        axes[0].legend(["True", "Command"])
-        axes[0].set_title("ALTITUDE")
+        fig1, axes = plt.subplots(3, 1)
+        # Old
+        # axes[0].plot(time_arr, alt_history)
+        # axes[0].plot(time_arr, alt_cmd_history)
+        # axes[0].legend(["True", "Command"])
+        # axes[0].set_title("ALTITUDE")
+        # axes[0].set_xlabel("Time (seconds)")
+        # axes[0].set_ylabel("Altitude (meters)")
+        #
+        # axes[1].plot(time_arr, airspeed_history)
+        # axes[1].plot(time_arr, airspeed_cmd_history)
+        # axes[1].legend(["True", "Command"])
+        # axes[1].set_title("Va")
+        # axes[1].set_xlabel("Time (seconds)")
+        # axes[1].set_ylabel("Airspeed (meters/second)")
+        #
+        # axes[2].plot(time_arr, chi_history)
+        # axes[2].plot(time_arr, chi_cmd_history)
+        # axes[2].legend(["True", "Command"])
+        # axes[2].set_title("CHI")
+        # axes[2].set_xlabel("Time (seconds)")
+        # axes[2].set_ylabel("Course Heading (degrees)")
+
+        # New
+        # Main State tracker
+        axes[0].plot(time_arr, alt_history_meas, 'm+')
+        axes[0].plot(time_arr, alt_history, 'c')
+        axes[0].plot(time_arr, alt_cmd_history, 'k')
+        axes[0].plot(time_arr, alt_history_est, 'r')
+        axes[0].legend(["Measured", "True",  "Command",  "Estimate"])
+        # axes[0].set_title("ALTITUDE")
         axes[0].set_xlabel("Time (seconds)")
         axes[0].set_ylabel("Altitude (meters)")
 
-        axes[1].plot(time_arr, airspeed_history)
-        axes[1].plot(time_arr, airspeed_cmd_history)
-        axes[1].legend(["True", "Command"])
-        axes[1].set_title("Va")
+        axes[1].plot(time_arr, airspeed_history_meas, 'm+')
+        axes[1].plot(time_arr, airspeed_history, 'c')
+        axes[1].plot(time_arr, airspeed_cmd_history, 'k')
+        axes[1].plot(time_arr, airspeed_history_est, 'r')
+        axes[1].legend(["Measured", "True",  "Command",  "Estimate"])
+        # axes[1].set_title("Va")
         axes[1].set_xlabel("Time (seconds)")
         axes[1].set_ylabel("Airspeed (meters/second)")
 
-        axes[2].plot(time_arr, chi_history)
-        axes[2].plot(time_arr, chi_cmd_history)
-        axes[2].legend(["True", "Command"])
-        axes[2].set_title("CHI")
+        axes[2].plot(time_arr, chi_history_meas, 'm+')
+        axes[2].plot(time_arr, chi_history, 'c')
+        axes[2].plot(time_arr, chi_cmd_history, 'k')
+        axes[2].plot(time_arr, chi_history_est, 'r')
+        axes[2].legend(["Measured", "True",  "Command",  "Estimate"])
+        # axes[2].set_title("CHI")
         axes[2].set_xlabel("Time (seconds)")
         axes[2].set_ylabel("Course Heading (degrees)")
 
@@ -247,6 +366,9 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
 
         # Show plots
         plt.show()
+    print("End Time: ", time_end - time_start)
+    print("##########################")
+
 
 
 #####

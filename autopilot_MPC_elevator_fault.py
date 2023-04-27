@@ -18,51 +18,48 @@ from mav_state import MAV_State
 from delta_state import Delta_State
 
 
-class Autopilot_MPC:
+class Autopilot_MPC_EF:
     def __init__(self, ts_control, mpc_horizon, state):
         # Variable Definitions !!!!NOTE: Arrays are formatted like: [min, max]!!!!
         # Saturation (Actuator Failure)
         self.Saturate = True
         self.a_sat = np.array([np.deg2rad(-30), np.deg2rad(30)])
         self.r_sat = np.array([np.deg2rad(-30), np.deg2rad(30)])
-        self.e_sat = np.array([np.deg2rad(-30), np.deg2rad(30)])
+        self.e_sat = np.array([np.deg2rad(-5), np.deg2rad(5)])
         self.t_sat = np.array([0., 1.])
 
         # Constraints (MPC Constraints)
         a_con = np.array([np.deg2rad(-30), np.deg2rad(30)])
         r_con = np.array([np.deg2rad(-30), np.deg2rad(30)])
-        e_con = np.array([np.deg2rad(-30), np.deg2rad(30)])
+        e_con = np.array([np.deg2rad(-5), np.deg2rad(5)])
         t_con = np.array([0., 1.])
 
         # Lateral Gains
         # Q Lateral Gains
-        q_v = 1e1
+        q_v = 1e-1
         q_p = 1e0
         q_r = 1e-1
-        q_phi = 1e1
-        q_chi = 1e2
-
+        q_phi = 1e3
+        q_chi = 1e0
         Q_lat = np.diag([q_v, q_p, q_r, q_phi, q_chi])
 
         # R Lateral Gains
         r_a = 1e1
-        r_r = 1e0
+        r_r = 1e1
         R_lat = np.array([[r_a], [r_r]])
 
         # Longitudinal Gains
         # Q Longitudinal Gains
         q_u = 1e2
         q_w = 1e2
-        q_q = 1e-2
-        q_theta = 1e-1
-        q_h = 1e4
-
-
+        q_q = 0
+        q_theta = 1e4
+        q_h = 0
         Q_lon = np.diag([q_u, q_w, q_q, q_theta, q_h])
 
         # R Longitudinal Gains
         r_e = 1e0
-        r_t = 1e0
+        r_t = 1e1
         R_lon = np.array([[r_e], [r_t]])
 
         '''
@@ -295,6 +292,7 @@ class Autopilot_MPC:
 
         self.mpc_lon.bounds['upper', '_u', 'u_lon'] = max_u_lon
         self.mpc_lon.bounds['lower', '_u', 'u_lon'] = min_u_lon
+        self.mpc_lon.bounds['lower', '_x', 'x_lon'] = np.array([[-100000], [-100000], [-np.deg2rad(4.5)], [-100000], [-100000]])
 
         # Scaling?????
         scaling_array_lon = np.array([1, 1, 1, 1, 1])

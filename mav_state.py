@@ -97,7 +97,7 @@ class MAV_State:
                           [float(self.Va * np.sin(self.alpha))], # w
                           [float(self.q)], # q
                           [float(self.theta)], # theta
-                          [-float(self.altitude)]]) # alt
+                          [float(self.altitude)]]) # alt
         return x_lon
 
 
@@ -118,6 +118,8 @@ class MAV_State:
         # alt
         self.altitude = x_lon.item(4)
 
+        # chi
+        self.chi = self.psi
 
     def add_noise(self):
         self.Va += 0.1*np.random.randn(1)

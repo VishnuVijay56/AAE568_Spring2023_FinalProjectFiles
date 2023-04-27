@@ -36,11 +36,11 @@ class Autopilot_MPC_TF:
 
         # Lateral Gains
         # Q Lateral Gains
-        q_v = 1e-10
+        q_v = 1e-1
         q_p = 1e0
         q_r = 1e-1
-        q_phi = 1e0
-        q_chi = 1e2
+        q_phi = 1e3
+        q_chi = 0
         Q_lat = np.diag([q_v, q_p, q_r, q_phi, q_chi])
 
         # R Lateral Gains
@@ -50,16 +50,16 @@ class Autopilot_MPC_TF:
 
         # Longitudinal Gains
         # Q Longitudinal Gains
-        q_u = 1e-10
-        q_w = 1e-10
-        q_q = 1e-1
-        q_theta = 1e0
-        q_h = 1e-10
+        q_u = 0
+        q_w = 0
+        q_q = 0
+        q_theta = 1e4
+        q_h = 0
         Q_lon = np.diag([q_u, q_w, q_q, q_theta, q_h])
 
         # R Longitudinal Gains
         r_e = 1e0
-        r_t = 1e0
+        r_t = 1e-3
         R_lon = np.array([[r_e], [r_t]])
 
         '''
@@ -313,7 +313,7 @@ class Autopilot_MPC_TF:
         Lateral MPC
         '''
 
-        err_Va = 0 #state.Va - cmd.airspeed_command
+        err_Va = state.Va - cmd.airspeed_command
 
         chi_c = wrap(cmd.course_command, state.chi)
         err_chi = self.saturate(state.chi - chi_c, -np.radians(15), np.radians(15))
@@ -340,7 +340,7 @@ class Autopilot_MPC_TF:
         Longitudinal MPC
         '''
         alt_c = self.saturate(cmd.altitude_command, state.altitude - 0.2*AP.altitude_zone, state.altitude + 0.2*AP.altitude_zone)
-        err_alt = 0# state.altitude - alt_c
+        err_alt = state.altitude - alt_c
         err_down = -err_alt
         
         self.int_down = self.int_down + (self.Ts / 2) * (err_down + self.err_down_delay)
