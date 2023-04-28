@@ -13,7 +13,7 @@ from sim_cmds import SimCmds
 sim_opt = SimCmds()
 sim_opt.view_sim = False
 sim_opt.sim_real_time = False
-sim_opt.display_graphs = False
+sim_opt.display_graphs = True
 sim_opt.use_kf = True
 sim_opt.wind_gust = False
 
@@ -21,7 +21,7 @@ sim_opt.wind_gust = False
 t_span = (0, 40)
 
 # Sim
-for i in range(15):
+for i in range(1):
     run_two_plane_sim(t_span, sim_opt)
     print(i+1)
     print("##########################")

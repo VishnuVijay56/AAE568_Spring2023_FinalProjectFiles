@@ -36,10 +36,10 @@ class Autopilot_MPC_EF:
 
         # Lateral Gains
         # Q Lateral Gains
-        q_v = 1e-1
-        q_p = 1e0
-        q_r = 1e-1
-        q_phi = 1e3
+        q_v = 1e-3
+        q_p = 1e-3
+        q_r = 1e1
+        q_phi = 1e1
         q_chi = 1e0
         Q_lat = np.diag([q_v, q_p, q_r, q_phi, q_chi])
 
@@ -50,16 +50,16 @@ class Autopilot_MPC_EF:
 
         # Longitudinal Gains
         # Q Longitudinal Gains
-        q_u = 1e2
-        q_w = 1e2
-        q_q = 0
-        q_theta = 1e4
-        q_h = 0
+        q_u = 1e-3
+        q_w = 1e-3
+        q_q = 1e2
+        q_theta = 1e10
+        q_h = 1e-4
         Q_lon = np.diag([q_u, q_w, q_q, q_theta, q_h])
 
         # R Longitudinal Gains
         r_e = 1e0
-        r_t = 1e1
+        r_t = 1e-3
         R_lon = np.array([[r_e], [r_t]])
 
         '''

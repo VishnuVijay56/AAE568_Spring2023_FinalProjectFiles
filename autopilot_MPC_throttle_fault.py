@@ -50,8 +50,8 @@ class Autopilot_MPC_TF:
 
         # Longitudinal Gains
         # Q Longitudinal Gains
-        q_u = 0
-        q_w = 0
+        q_u = 1e-3
+        q_w = 1e-3
         q_q = 0
         q_theta = 1e4
         q_h = 0
@@ -59,7 +59,7 @@ class Autopilot_MPC_TF:
 
         # R Longitudinal Gains
         r_e = 1e0
-        r_t = 1e-3
+        r_t = 1e5
         R_lon = np.array([[r_e], [r_t]])
 
         '''
