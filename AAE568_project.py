@@ -21,5 +21,7 @@ sim_opt.wind_gust = False
 t_span = (0, 40)
 
 # Sim
-for i in range(5):
+for i in range(15):
     run_two_plane_sim(t_span, sim_opt)
+    print(i+1)
+    print("##########################")

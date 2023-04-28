@@ -33,12 +33,12 @@ class Autopilot_TF:
         # Lateral Autopilot
         A_lat = M.A_lat
         B_lat = M.B_lat
-        
+
         q_v = 1e-1
         q_p = 1e0
         q_r = 1e-1
         q_phi = 1e3
-        q_chi = 1e1
+        q_chi = 0
         Q_lat = np.diag([q_v, q_p, q_r, q_phi, q_chi])
 
         r_a = 1e1
@@ -53,16 +53,16 @@ class Autopilot_TF:
         w_star = M.x_trim.item(5)
         A_lon = M.A_lon
         B_lon = M.B_lon
-        
-        q_u = 1e1
-        q_w = 1e1
-        q_q = 1e-2
+
+        q_u = 0
+        q_w = 0
+        q_q = 0
         q_theta = 1e4
         q_h = 0
         Q_lon = np.diag([q_u, q_w, q_q, q_theta, q_h])
 
         r_e = 1e0
-        r_t = 1e0
+        r_t = 1e-3
         R_lon = np.diag([r_e, r_t])
 
         P_lon = solve_continuous_are(A_lon, B_lon, Q_lon, R_lon)
