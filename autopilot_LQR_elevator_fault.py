@@ -103,8 +103,8 @@ class Autopilot_EF:
                           [err_down]], dtype=object) # downward pos
 
         temp = -self.K_lon @ x_lon
-        delta_e = self.saturate(temp.item(0) + self.trim_d_e, -np.radians(30), np.radians(30))
-        delta_t = self.saturate((temp.item(1) + self.trim_d_t), 0., 0.)
+        delta_e = self.saturate(temp.item(0) + self.trim_d_e, -np.radians(5), np.radians(5))
+        delta_t = self.saturate((temp.item(1) + self.trim_d_t), 0., 1.)
 
         # construct output and commanded states
         delta = Delta_State(d_e = delta_e,

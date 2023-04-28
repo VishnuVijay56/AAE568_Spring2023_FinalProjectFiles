@@ -35,17 +35,26 @@ def error_calculation(vector_1, vector_2):
     error_total = np.sum(error_vs_time**2)
     return error_total/len(vector_1)
 
+def saturate(input, low_limit, up_limit):
+        if input <= low_limit:
+            output = low_limit
+        elif input >= up_limit:
+            output = up_limit
+        else:
+            output = input
+        return output
 def run_two_plane_sim(t_span, sim_options : SimCmds):
     # General Definitions
+    glide_angle = 0
     Ts = 0.01
-    mpc_horizon = 25
-    controller_type = "LQR"  # "LQR", or "MPC"
+    mpc_horizon = 20
+    controller_type = "MPC"  # "LQR", or "MPC"
 
     curr_time = t_span[0]
     end_time = t_span[1]  # seconds
 
     # Faults
-    case = 1
+    case = 0
     if (case == 0):
         fault_time = end_time
         switching_delay = end_time
@@ -54,7 +63,7 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
         switching_delay = 3
     elif (case == 2):  # Elevator
         fault_time = 1
-        switching_delay = 10
+        switching_delay = 3
     fault_coord = None
     final_coord = None
 
@@ -192,13 +201,18 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
         else:
             chaser_delta, commanded_state = chaser_autopilot.update(chaser_commands, estimated_chaser)
 
+        # Sim Fault
+        if (case == 1) and (curr_time > fault_time): # Throttle
+            chaser_delta.throttle_level = 0
+        elif (case == 2) and (curr_time > fault_time): # elevator
+            chaser_delta.elevator_deflection = saturate(chaser_delta.elevator_deflection, np.radians(-5), np.radians(5))
 
 
 
 
 
         # wind sim
-        wind_steady_gust = wind_sim.update()  # np.zeros((6,1))  #
+        wind_steady_gust = np.zeros((6,1))  # wind_sim.update()  #
 
         # Update MAV dynamic state
         chaser_dynamics.iterate(chaser_delta, wind_steady_gust)
@@ -218,17 +232,17 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
 
             alt_history[ind] = chaser_state.altitude
             alt_history_est[ind] = estimated_chaser.altitude
-            alt_history_meas[ind] = measured_state.altitude
+            # alt_history_meas[ind] = measured_state.altitude
             alt_cmd_history[ind] = chaser_commands.altitude_command
 
             airspeed_history[ind] = chaser_state.Va
             airspeed_history_est[ind] = estimated_chaser.Va
-            airspeed_history_meas[ind] = measured_state.Va
+            # airspeed_history_meas[ind] = measured_state.Va
             airspeed_cmd_history[ind] = chaser_commands.airspeed_command
 
             chi_history[ind] = chaser_state.chi * 180 / np.pi
             chi_history_est[ind] = estimated_chaser.chi * 180 / np.pi
-            chi_history_meas[ind] = measured_state.chi * 180 / np.pi
+            # chi_history_meas[ind] = measured_state.chi * 180 / np.pi
             chi_cmd_history[ind] = chaser_commands.course_command * 180 / np.pi
 
             phi_history[ind] = chaser_state.phi * 180 / np.pi
@@ -284,67 +298,70 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
     if (sim_options.display_graphs):
         # Main State tracker
         fig1, axes = plt.subplots(3, 1)
-        # # Old
-        # axes[0].plot(time_arr, alt_history)
-        # axes[0].plot(time_arr, alt_cmd_history)
-        # axes[0].legend(["True", "Command"])
-        # axes[0].set_title("ALTITUDE")
-        # axes[0].set_xlabel("Time (seconds)")
-        # axes[0].set_ylabel("Altitude (meters)")
-        # # axes[0].axvline(1, -100, 100, label='Elevator Fault')
-        #
-        # axes[1].plot(time_arr, airspeed_history)
-        # axes[1].plot(time_arr, airspeed_cmd_history)
-        # axes[1].legend(["True", "Command"])
-        # axes[1].set_title("Va")
-        # axes[1].set_xlabel("Time (seconds)")
-        # axes[1].set_ylabel("Airspeed (meters/second)")
-        # # axes[0].axvline(1, -100, 100, label='Elevator Fault')
-        #
-        # axes[2].plot(time_arr, chi_history)
-        # axes[2].plot(time_arr, chi_cmd_history)
-        # axes[2].legend(["True", "Command"])
-        # axes[2].set_title("CHI")
-        # axes[2].set_xlabel("Time (seconds)")
-        # axes[2].set_ylabel("Course Heading (degrees)")
-        # # axes[0].axvline(1, -100, 100, label='Elevator Fault')
-        # # fig1.tight_layout()
-        # fig1.subplots_adjust(hspace=.5)
-
-        # New
-        # Main State tracker
-        axes[0].plot(time_arr, alt_history_meas, 'm+')
-        axes[0].plot(time_arr, alt_history, 'c')
-        axes[0].plot(time_arr, alt_cmd_history, 'k')
-        axes[0].plot(time_arr, alt_history_est, 'r')
-        axes[0].axvline(1, -100, 100, color='b')
-        axes[0].legend(["Measured", "True",  "Command",  "Estimate", "Elevator Fault"])
+        # Old
+        axes[0].plot(time_arr, alt_history)
+        axes[0].plot(time_arr, alt_cmd_history)
+        axes[0].legend(["True", "Command"])
         axes[0].set_title("ALTITUDE")
         axes[0].set_xlabel("Time (seconds)")
         axes[0].set_ylabel("Altitude (meters)")
         # axes[0].axvline(1, -100, 100, label='Elevator Fault')
 
-        axes[1].plot(time_arr, airspeed_history_meas, 'm+')
-        axes[1].plot(time_arr, airspeed_history, 'c')
-        axes[1].plot(time_arr, airspeed_cmd_history, 'k')
-        axes[1].plot(time_arr, airspeed_history_est, 'r')
-        axes[1].axvline(1, -100, 100, color='b')
-        axes[1].legend(["Measured", "True",  "Command",  "Estimate", "Elevator Fault"])
+        axes[1].plot(time_arr, airspeed_history)
+        axes[1].plot(time_arr, airspeed_cmd_history)
+        axes[1].legend(["True", "Command"])
         axes[1].set_title("Va")
         axes[1].set_xlabel("Time (seconds)")
         axes[1].set_ylabel("Airspeed (meters/second)")
-        # axes[1].axvline(1, -100, 100, label='Elevator Fault')
+        # axes[0].axvline(1, -100, 100, label='Elevator Fault')
 
-        axes[2].plot(time_arr, chi_history_meas, 'm+')
-        axes[2].plot(time_arr, chi_history, 'c')
-        axes[2].plot(time_arr, chi_cmd_history, 'k')
-        axes[2].plot(time_arr, chi_history_est, 'r')
-        axes[2].axvline(1, -100, 100, color='b')
-        axes[2].legend(["Measured", "True",  "Command",  "Estimate", "Elevator Fault"])
+        axes[2].plot(time_arr, chi_history)
+        axes[2].plot(time_arr, chi_cmd_history)
+        axes[2].legend(["True", "Command"])
         axes[2].set_title("CHI")
         axes[2].set_xlabel("Time (seconds)")
         axes[2].set_ylabel("Course Heading (degrees)")
-        # axes[2].axvline(1, -100, 100, label='Elevator Fault')
+        # axes[0].axvline(1, -100, 100, label='Elevator Fault')
+        # fig1.tight_layout()
+        fig1.subplots_adjust(hspace=.5)
+
+        # # New
+        # # Main State tracker
+        # axes[0].plot(time_arr, alt_history_meas, 'm+')
+        # axes[0].plot(time_arr, alt_history, 'c')
+        # axes[0].plot(time_arr, alt_cmd_history, 'k')
+        # axes[0].plot(time_arr, alt_history_est, 'r')
+        # axes[0].axvline(fault_time, -100, 100, color='b')
+        # axes[0].axvline(fault_time + switching_delay, -100, 100, color='g')
+        # axes[0].legend(["Measured", "True",  "Command",  "Estimate", "UAV Fault", "Controller Switch"], loc='upper right', prop={'size': 6})
+        # axes[0].set_title("ALTITUDE")
+        # axes[0].set_xlabel("Time (seconds)")
+        # axes[0].set_ylabel("Altitude (meters)")
+        # # axes[0].axvline(1, -100, 100, label='Elevator Fault')
+        #
+        # axes[1].plot(time_arr, airspeed_history_meas, 'm+')
+        # axes[1].plot(time_arr, airspeed_history, 'c')
+        # axes[1].plot(time_arr, airspeed_cmd_history, 'k')
+        # axes[1].plot(time_arr, airspeed_history_est, 'r')
+        # axes[1].axvline(fault_time, -100, 100, color='b')
+        # axes[1].axvline(fault_time + switching_delay, -100, 100, color='g')
+        # axes[1].legend(["Measured", "True",  "Command",  "Estimate", "UAV Fault", "Controller Switch"], loc='upper right', prop={'size': 6})
+        # axes[1].set_title("Va")
+        # axes[1].set_xlabel("Time (seconds)")
+        # axes[1].set_ylabel("Airspeed (meters/second)")
+        # # axes[1].axvline(1, -100, 100, label='Elevator Fault')
+        #
+        # axes[2].plot(time_arr, chi_history_meas, 'm+')
+        # axes[2].plot(time_arr, chi_history, 'c')
+        # axes[2].plot(time_arr, chi_cmd_history, 'k')
+        # axes[2].plot(time_arr, chi_history_est, 'r')
+        # axes[2].axvline(fault_time, -100, 100, color='b')
+        # axes[2].axvline(fault_time + switching_delay, -100, 100, color='g')
+        # axes[2].legend(["Measured", "True",  "Command",  "Estimate", "UAV Fault", "Controller Switch"], loc='lower right', prop={'size': 6})
+        # axes[2].set_title("CHI")
+        # axes[2].set_xlabel("Time (seconds)")
+        # axes[2].set_ylabel("Course Heading (degrees)")
+        # # axes[2].axvline(1, -100, 100, label='Elevator Fault')
 
         fig1.subplots_adjust(hspace=.5)
 
@@ -386,6 +403,7 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
         plt.show()
     print(time_end - time_start)
     # print("Run Time: ", time_end - time_start)
+    return np.array([[glide_angle], [altitude_error], [airspeed_error], [chi_error], [time_end - time_start]])
 
 
 
