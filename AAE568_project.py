@@ -26,5 +26,7 @@ t_span = (0, 40)
 
 
 # Sim
-for i in range(5):
+for i in range(15):
+    print("----------------------------------")
+    print("Simulation number: ", i)
     run_two_plane_sim(t_span, sim_opt)

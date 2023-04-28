@@ -132,7 +132,7 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
 
     
     # Faults
-    case = 0
+    case = 2
     if (case == 0):
         fault_time = end_time
         switching_delay = end_time
@@ -251,7 +251,8 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
         curr_time += Ts
         ind += 1
 
-    print("Simulation Time: ", time.time() - sim_start)
+    if (case == 0):
+        print("Simulation Time: ", time.time() - sim_start)
 
 
     ## Glide Path Angle Calculations
@@ -260,8 +261,8 @@ def run_two_plane_sim(t_span, sim_options : SimCmds):
         alt_diff = fault_coord[2] - final_coord[2]
         ground_dist = np.sqrt(np.power(fault_coord[0] - final_coord[0], 2) + np.power(fault_coord[1] - final_coord[1], 2))
         glide_angle = np.arctan2(alt_diff, ground_dist)
-        print("Fault: ", fault_coord, " --> ", final_coord)
-        print("\nGLIDE ANGLE (deg): ", np.rad2deg(glide_angle))
+        #print("Fault: ", fault_coord, " --> ", final_coord)
+        print("\nGLIDE ANGLE (deg): ", round(np.rad2deg(glide_angle), 5))
         print()
     
 

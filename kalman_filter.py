@@ -96,23 +96,28 @@ class KalmanFilter:
         self.x_lon_hat_old = self.x_lon_hat_new
 
         # Get Output y{k} = H*x{k} + G*v{k}
-        y_lon = self.H_lon @ x_lon + self.G_lon @ self.getSensorNoise_lon()
+        #y_lon = self.H_lon @ x_lon + self.G_lon @ self.getSensorNoise_lon()
+        y_lon = x_lon + self.getSensorNoise_lon()
 
-        # x{k+1} = A * x{k} + B*u{k} + C*w{k}
-        #self.x_lon_new = M.Ad_lon @ x_lon + M.Bd_lon @ delta.get_ulon() + self.C_lon @ self.getProcessNoise_lon()
-        
+        # Invert 5x5 Matrix
+        #invTerm_lon = pinv(self.H_lon @ self.P_lon @ np.transpose(self.H_lon) + self.G_lon @ self.r_lon @ np.transpose(self.G_lon))
+        invTerm_lon = pinv(self.P_lon + self.r_lon)
+
         # Smoothing Equations for xhat{k}
-        self.x_lon_hat_old = self.x_lon_hat_old + self.P_lon @ np.transpose(self.H_lon) @ pinv(self.H_lon @ self.P_lon @ np.transpose(self.H_lon) + self.G_lon @ self.r_lon @ np.transpose(self.G_lon)) @ (y_lon - self.H_lon @ self.x_lon_hat_old)
-        
+        #self.x_lon_hat_old = self.x_lon_hat_old + self.P_lon @ np.transpose(self.H_lon) @ invTerm_lon @ (y_lon - self.H_lon @ self.x_lon_hat_old)
+        self.x_lon_hat_old = self.x_lon_hat_old + self.P_lon @ invTerm_lon @ (y_lon - self.x_lon_hat_old)
+
         # Kalman Filter Gain
-        L_lon = M.Ad_lon @ self.P_lon @ np.transpose(self.H_lon) @ pinv(self.H_lon @ self.P_lon @ np.transpose(self.H_lon) + self.G_lon @ self.r_lon @ np.transpose(self.G_lon))
-        
+        #L_lon = M.Ad_lon @ self.P_lon @ np.transpose(self.H_lon) @ invTerm_lon
+        L_lon = M.Ad_lon @ self.P_lon @ invTerm_lon
+  
         # xhat{k+1}
-        self.x_lon_hat_new = (M.Ad_lon - L_lon @ self.H_lon) @ self.x_lon_hat_old + L_lon @ y_lon + M.Bd_lon @ delta.get_ulon()
+        #self.x_lon_hat_new = (M.Ad_lon - L_lon @ self.H_lon) @ self.x_lon_hat_old + L_lon @ y_lon + M.Bd_lon @ delta.get_ulon()
+        self.x_lon_hat_new = (M.Ad_lon - L_lon) @ self.x_lon_hat_old + L_lon @ y_lon + M.Bd_lon @ delta.get_ulon()
         
         # Update Error Covariance
-        #self.P_lon = (M.Ad_lon - L_lon @ self.H_lon) @ self.P_lon @ np.transpose(M.Ad_lon - L_lon @ self.H_lon) + self.C_lon @ self.q_lon @ np.transpose(self.C_lon) + L_lon @ self.G_lon @ self.r_lon @ np.transpose(self.G_lon) @ np.transpose(L_lon)
-        self.P_lon = M.Ad_lon @ self.P_lon @ np.transpose(M.Ad_lon) + self.C_lon @ self.q_lon @ np.transpose(self.C_lon) - (M.Ad_lon @ self.P_lon @ np.transpose(self.H_lon)) @ pinv(self.H_lon @ self.P_lon @ np.transpose(self.H_lon) + self.G_lon @ self.r_lon @ np.transpose(self.G_lon)) @ (self.H_lon @ self.P_lon @ np.transpose(M.Ad_lon))
+        #self.P_lon = M.Ad_lon @ self.P_lon @ np.transpose(M.Ad_lon) + self.C_lon @ self.q_lon @ np.transpose(self.C_lon) - (M.Ad_lon @ self.P_lon @ np.transpose(self.H_lon)) @ invTerm_lon @ (self.H_lon @ self.P_lon @ np.transpose(M.Ad_lon))
+        self.P_lon = M.Ad_lon @ self.P_lon @ np.transpose(M.Ad_lon) + self.C_lon @ self.q_lon @ np.transpose(self.C_lon) - (M.Ad_lon @ self.P_lon) @ invTerm_lon @ (self.P_lon @ np.transpose(M.Ad_lon))
 
         #############################
         # Latitudinal Kalman Filter
@@ -125,31 +130,33 @@ class KalmanFilter:
         self.x_lat_hat_old = self.x_lat_hat_new
 
         # Get Output y{k} = H*x{k} + G*v{k}
-        y_lat = self.H_lat @ x_lat + self.G_lat @ self.getSensorNoise_lat()
+        #y_lat = self.H_lat @ x_lat + self.G_lat @ self.getSensorNoise_lat()
+        y_lat = x_lat + self.getSensorNoise_lat()
 
-        # x{k+1} = A * x{k} + B*u{k} + C*w{k}
-        #self.x_lat_new = M.Ad_lat @ x_lat + M.Bd_lat @ delta.get_ulat() + self.C_lat @ self.getProcessNoise_lat()
-        self.x_lat_new = M.Ad_lat @ x_lat + M.Bd_lat @ delta.get_ulat() + self.C_lat @ self.getProcessNoise_lat()
+        # Invert 5x5 Matrix
+        #invTerm_lat = pinv(self.H_lat @ self.P_lat @ np.transpose(self.H_lat) + self.G_lat @ self.r_lat @ np.transpose(self.G_lat))
+        invTerm_lat = pinv(self.P_lat + self.r_lat)
 
         # Smoothing Equations for xhat{k}
-        self.x_lat_hat_old = self.x_lat_hat_old + self.P_lat @ np.transpose(self.H_lat) @ pinv(self.H_lat @ self.P_lat @ np.transpose(self.H_lat) + self.G_lat @ self.r_lat @ np.transpose(self.G_lat)) @ (y_lat - self.H_lat @ self.x_lat_hat_old)
-        
+        #self.x_lat_hat_old = self.x_lat_hat_old + self.P_lat @ np.transpose(self.H_lat) @ invTerm_lat @ (y_lat - self.H_lat @ self.x_lat_hat_old)
+        self.x_lat_hat_old = self.x_lat_hat_old + self.P_lat @ invTerm_lat @ (y_lat - self.x_lat_hat_old)
+
         # Kalman Filter Gain
-        #L_lat = M.Ad_lat @ self.P_lat @ np.transpose(self.H_lat) @ pinv(self.H_lat @ self.P_lat @ np.transpose(self.H_lat) + self.G_lat @ self.r_lat @ np.transpose(self.G_lat))
-        L_lat = M.Ad_lat @ self.P_lat @ np.transpose(self.H_lat) @ pinv(self.H_lat @ self.P_lat @ np.transpose(self.H_lat) + self.G_lat @ self.r_lat @ np.transpose(self.G_lat))
+        #L_lat = M.Ad_lat @ self.P_lat @ np.transpose(self.H_lat) @ invTerm_lat
+        L_lat = M.Ad_lat @ self.P_lat @ invTerm_lat
+
         # xhat{k+1}
         #self.x_lat_hat_new = (M.Ad_lat - L_lat @ self.H_lat) @ self.x_lat_hat_old + L_lat @ y_lat + M.Bd_lat @ delta.get_ulat()
-        self.x_lat_hat_new = (M.Ad_lat - L_lat @ self.H_lat) @ self.x_lat_hat_old + L_lat @ y_lat + M.Bd_lat @ delta.get_ulat()
+        self.x_lat_hat_new = (M.Ad_lat - L_lat) @ self.x_lat_hat_old + L_lat @ y_lat + M.Bd_lat @ delta.get_ulat()
+
         # Update Error Covariance
-        #self.P_lat = (M.Ad_lat - L_lat @ self.H_lat) @ self.P_lat @ np.transpose(M.Ad_lat - L_lat @ self.H_lat) + self.C_lat @ self.q_lat @ np.transpose(self.C_lat) + L_lat @ self.G_lat @ self.r_lat @ np.transpose(self.G_lat) @ np.transpose(L_lat)
-        #self.P_lat = (M.Ad_lat - L_lat @ self.H_lat) @ self.P_lat @ np.transpose(M.Ad_lat - L_lat @ self.H_lat) + self.C_lat @ self.q_lat @ np.transpose(self.C_lat) + L_lat @ self.G_lat @ self.r_lat @ np.transpose(self.G_lat) @ np.transpose(L_lat)
-        self.P_lat = M.Ad_lat @ self.P_lat @ np.transpose(M.Ad_lat) + self.C_lat @ self.q_lat @ np.transpose(self.C_lat) - (M.Ad_lat @ self.P_lat @ np.transpose(self.H_lat)) @ pinv(self.H_lat @ self.P_lat @ np.transpose(self.H_lat) + self.G_lat @ self.r_lat @ np.transpose(self.G_lat)) @ (self.H_lat @ self.P_lat @ np.transpose(M.Ad_lat))
-        
+        #self.P_lat = M.Ad_lat @ self.P_lat @ np.transpose(M.Ad_lat) + self.C_lat @ self.q_lat @ np.transpose(self.C_lat) - (M.Ad_lat @ self.P_lat @ np.transpose(self.H_lat)) @ invTerm_lat @ (self.H_lat @ self.P_lat @ np.transpose(M.Ad_lat))
+        self.P_lat = M.Ad_lat @ self.P_lat @ np.transpose(M.Ad_lat) + self.C_lat @ self.q_lat @ np.transpose(self.C_lat) - (M.Ad_lat @ self.P_lat) @ invTerm_lat @ (self.P_lat @ np.transpose(M.Ad_lat))
 
         old_state = MAV_State()
         old_state.set_initial_cond(self.x_lon_hat_old, self.x_lat_hat_old)
-        new_state = MAV_State()
-        new_state.set_initial_cond(self.x_lon_hat_new, self.x_lat_hat_new)
+        #new_state = MAV_State()
+        #new_state.set_initial_cond(self.x_lon_hat_new, self.x_lat_hat_new)
         measured_state = MAV_State()
         measured_state.set_initial_cond(y_lon, y_lat)
 
